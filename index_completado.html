@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beirute — Sistema de Horas Extras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #1A7FD4;
+  --primary-dark: #1260A8;
+  --primary-light: #1A3A5C;
+  --bg-base: #0B1826;
+  --bg-card: #0F2035;
+  --bg-header: #0D1B2E;
+  --bg-input: #081422;
+  --bg-hover: #162B42;
+  --border: #1E4068;
+  --text-primary: #E8F0F8;
+  --text-secondary: #7DA8CC;
+  --text-muted: #4A7499;
+  --extra: #E07B00;
+  --doble: #C0392B;
+  --success: #27AE60;
+  --warning: #F39C12;
+}
+
+/* LOGIN */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 0%, #10233b 0%, var(--bg-base) 70%);
+}
+.login-box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 2.2rem 2rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.login-box h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  text-align: center;
+}
+.login-box p.sub {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 1.6rem;
+}
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 127, 212, 0.1);
+}
+.login-error {
+  color: #E05444;
+  font-size: 12.5px;
+  margin-top: 10px;
+  text-align: center;
+  min-height: 16px;
+}
+.btn-login {
+  width: 100%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 11px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.btn-login:hover { background: var(--primary-dark); }
+.btn-login:disabled { opacity: 0.6; cursor: default; }
+
+body {
+  font-family: 'Barlow', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #0D1B2E 0%, #081422 100%);
+  border-bottom: 2px solid var(--primary);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(26, 127, 212, 0.15);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.user-chip b { color: var(--text-primary); }
+
+.role-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.role-tag.admin { background: rgba(224,123,0,0.18); color: #F0920A; }
+.role-tag.colaborador { background: rgba(26,127,212,0.18); color: #4FA3E8; }
+
+.btn-logout {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-logout:hover {
+  background: rgba(192, 57, 43, 0.15);
+  color: #E05444;
+  border-color: rgba(192, 57, 43, 0.35);
+}
+
+.main-container {
+  display: flex;
+  height: calc(100vh - 70px);
+}
+
+.sidebar {
+  width: 240px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 1rem 0;
+}
+
+.sidebar-item {
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.sidebar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  background: rgba(26, 127, 212, 0.1);
+  border-left-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.sidebar-section {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-section-label {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.btn:hover { background: var(--primary-dark); }
+
+.btn-secondary {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: rgba(26, 127, 212, 0.1);
+  border-color: var(--primary);
+}
+
+.btn-approve {
+  background: rgba(39, 174, 96, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(39, 174, 96, 0.3);
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-approve:hover {
+  background: rgba(39, 174, 96, 0.25);
+  border-color: var(--success);
+}
+
+.btn-reject {
+  background: rgba(192, 57, 43, 0.15);
+  color: #E05444;
+  border: 1px solid rgba(192, 57, 43, 0.3);
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-reject:hover {
+  background: rgba(192, 57, 43, 0.25);
+  border-color: #E05444;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 11px;
+  margin: 2px;
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  background: rgba(26, 127, 212, 0.08);
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+tbody tr:hover {
+  background: rgba(26, 127, 212, 0.05);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge.pending {
+  background: rgba(243, 156, 18, 0.15);
+  color: #F39C12;
+}
+
+.badge.approved {
+  background: rgba(39, 174, 96, 0.15);
+  color: var(--success);
+}
+
+.badge.rejected {
+  background: rgba(192, 57, 43, 0.15);
+  color: #E05444;
+}
+
+.badge.extra {
+  background: rgba(224, 123, 0, 0.15);
+  color: var(--extra);
+}
+
+.badge.doble {
+  background: rgba(192, 57, 43, 0.15);
+  color: var(--doble);
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.hidden { display: none !important; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border-left: 4px solid var(--primary);
+}
+
+.stat-card.pending { border-left-color: var(--warning); }
+.stat-card.approved { border-left-color: var(--success); }
+.stat-card.rejected { border-left-color: #E05444; }
+
+.stat-number {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.record-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal h3 {
+  font-size: 18px;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen active">
+  <div class="login-box">
+    <h1>BEIRUTE</h1>
+    <p class="sub">Sistema de Horas Extras</p>
+    
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="tu@email.com">
+    </div>
+    
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+    </div>
+    
+    <div class="login-error" id="loginError"></div>
+    
+    <button class="btn-login" onclick="handleLogin()">Ingresar</button>
+    <p style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+      👉 Solicita credenciales a tu admin
+    </p>
+  </div>
+</div>
+
+<!-- APP CONTAINER -->
+<div id="appContainer" style="display: none;">
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="brand">
+      <div style="font-size: 24px;">⏱️</div>
+      <div>
+        <div class="brand-label">BEIRUTE</div>
+      </div>
+    </div>
+    
+    <div class="header-actions">
+      <div class="user-chip">
+        <span>👤 <b id="userName"></b></span>
+      </div>
+      <span class="role-tag" id="userRole"></span>
+      <button class="btn-logout" onclick="handleLogout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <div class="main-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-item active" onclick="switchPage('dashboard')">
+        📊 Dashboard
+      </div>
+      <div class="sidebar-item" onclick="switchPage('registro')">
+        ➕ Nuevo Registro
+      </div>
+      <div class="sidebar-item" onclick="switchPage('historial')">
+        📋 Mi Historial
+      </div>
+      
+      <div id="admMenu" class="sidebar-section hidden">
+        <div class="sidebar-section-label">Administración</div>
+        <div class="sidebar-item" onclick="switchPage('aprobaciones')">
+          ✅ Aprobaciones
+        </div>
+        <div class="sidebar-item" onclick="switchPage('usuarios')">
+          👥 Usuarios
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT AREA -->
+    <main class="content-area">
+
+      <!-- DASHBOARD PAGE -->
+      <div id="dashboard" class="page active">
+        <div class="page-title">📊 Dashboard</div>
+        <div id="dashboardContent"></div>
+      </div>
+
+      <!-- REGISTRO PAGE -->
+      <div id="registro" class="page">
+        <div class="page-title">➕ Nuevo Registro de Horas</div>
+        
+        <div class="card">
+          <h2>Registrar Horas Extras</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="date" id="inputFecha">
+            </div>
+            <div class="form-group">
+              <label>Nombre del Empleado</label>
+              <input type="text" id="inputEmpleado" placeholder="Tu nombre">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Hora Entrada</label>
+              <input type="time" id="inputEntrada">
+            </div>
+            <div class="form-group">
+              <label>Hora Salida</label>
+              <input type="time" id="inputSalida">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cliente</label>
+              <input type="text" id="inputCliente" placeholder="Nombre del cliente">
+            </div>
+            <div class="form-group">
+              <label>Tipo de Hora</label>
+              <select id="inputTipoHora">
+                <option value="">-- Selecciona --</option>
+                <option value="extra">Extra (1x)</option>
+                <option value="doble">Doble (2x)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Descripción del Trabajo</label>
+              <textarea id="inputTrabajo" style="width: 100%; height: 100px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text-primary); font-family: inherit; resize: vertical;" placeholder="Describe las tareas realizadas..."></textarea>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn" onclick="saveRecord()">💾 Guardar Registro</button>
+            <button class="btn btn-secondary" onclick="clearForm()">🔄 Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL PAGE -->
+      <div id="historial" class="page">
+        <div class="page-title">📋 Mi Historial</div>
+        
+        <div class="card">
+          <h2>Mis Registros de Horas Extras</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Empleado</th>
+                  <th>Entrada</th>
+                  <th>Salida</th>
+                  <th>Cliente</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="recordsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- APROBACIONES PAGE (Admin Only) -->
+      <div id="aprobaciones" class="page">
+        <div class="page-title">✅ Aprobaciones Pendientes</div>
+        
+        <div class="card">
+          <h2>Registros Pendientes de Aprobación</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Empleado</th>
+                  <th>Entrada-Salida</th>
+                  <th>Cliente</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="approvalsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- USUARIOS PAGE (Admin Only) -->
+      <div id="usuarios" class="page">
+        <div class="page-title">👥 Gestión de Usuarios</div>
+        
+        <div class="card">
+          <h2>Crear Nuevo Usuario</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="inputNewUser" placeholder="usuario@empresa.com">
+            </div>
+            <div class="form-group">
+              <label>Rol</label>
+              <select id="inputUserRole">
+                <option value="colaborador">Colaborador</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          
+          <button class="btn" onclick="createUser()">➕ Crear Usuario</button>
+        </div>
+
+        <div class="card">
+          <h2>Usuarios del Sistema</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Creado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="usersList"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL DETAIL -->
+<div id="modalDetail" class="modal-overlay">
+  <div class="modal">
+    <h3 id="modalTitle">Detalles del Registro</h3>
+    <div id="modalContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SETUP -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+
+<script>
+// CONFIGURACIÓN FIREBASE (Reemplaza con tus credenciales)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ESTADO GLOBAL
+let currentUser = null;
+let currentUserRole = null;
+
+// ============ AUTENTICACIÓN ============
+function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorDiv = document.getElementById('loginError');
+
+  if (!email || !password) {
+    errorDiv.textContent = '⚠️ Completa todos los campos';
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(userCredential => {
+      currentUser = userCredential.user;
+      loadUserRole();
+    })
+    .catch(error => {
+      errorDiv.textContent = '❌ ' + (error.message || 'Error de autenticación');
+    });
+}
+
+function handleLogout() {
+  if (confirm('¿Estás seguro que deseas salir?')) {
+    auth.signOut()
+      .then(() => {
+        currentUser = null;
+        currentUserRole = null;
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginError').textContent = '';
+        document.getElementById('loginScreen').classList.add('active');
+        document.getElementById('appContainer').style.display = 'none';
+      })
+      .catch(error => showToast('❌ Error: ' + error.message));
+  }
+}
+
+function loadUserRole() {
+  if (!currentUser) return;
+
+  db.collection('users').doc(currentUser.uid).get()
+    .then(doc => {
+      if (doc.exists) {
+        currentUserRole = doc.data().role || 'colaborador';
+        showApp();
+      } else {
+        // Si no existe el documento de usuario, crear uno como colaborador
+        db.collection('users').doc(currentUser.uid).set({
+          email: currentUser.email,
+          role: 'colaborador',
+          createdAt: new Date()
+        }).then(() => {
+          currentUserRole = 'colaborador';
+          showApp();
+        });
+      }
+    })
+    .catch(error => {
+      showToast('❌ Error cargando datos: ' + error.message);
+    });
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.remove('active');
+  document.getElementById('appContainer').style.display = 'flex';
+  document.getElementById('userName').textContent = currentUser.email.split('@')[0];
+  
+  const roleTag = document.getElementById('userRole');
+  roleTag.textContent = currentUserRole === 'admin' ? 'ADMIN' : 'COLABORADOR';
+  roleTag.className = 'role-tag ' + currentUserRole;
+
+  // Mostrar/ocultar menú de admin
+  const admMenu = document.getElementById('admMenu');
+  if (currentUserRole === 'admin') {
+    admMenu.classList.remove('hidden');
+  } else {
+    admMenu.classList.add('hidden');
+  }
+
+  loadDashboard();
+  loadRecords();
+}
+
+// ============ NAVEGACIÓN ============
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  event.target.classList.add('active');
+
+  if (page === 'aprobaciones') loadApprovals();
+  if (page === 'historial') loadRecords();
+  if (page === 'usuarios') loadUsers();
+  if (page === 'dashboard') loadDashboard();
+}
+
+// ============ DASHBOARD ============
+function loadDashboard() {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0,0,0,0);
+
+  const end = new Date();
+  end.setHours(23,59,59,999);
+
+  const query = currentUserRole === 'admin' 
+    ? db.collection('records')
+        .where('createdAt', '>=', start)
+        .where('createdAt', '<=', end)
+    : db.collection('records')
+        .where('createdBy', '==', currentUser.uid)
+        .where('createdAt', '>=', start)
+        .where('createdAt', '<=', end);
+
+  query.get()
+    .then(snapshot => {
+      const records = [];
+      snapshot.forEach(doc => records.push(doc.data()));
+
+      const stats = {
+        total: records.length,
+        pending: records.filter(r => r.status === 'pending').length,
+        approved: records.filter(r => r.status === 'approved').length,
+        rejected: records.filter(r => r.status === 'rejected').length
+      };
+
+      const html = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" style="color: var(--primary);">${stats.total}</div>
+            <div class="stat-label">Registros este mes</div>
+          </div>
+          <div class="stat-card pending">
+            <div class="stat-number" style="color: var(--warning);">${stats.pending}</div>
+            <div class="stat-label">Pendientes de aprobación</div>
+          </div>
+          <div class="stat-card approved">
+            <div class="stat-number" style="color: var(--success);">${stats.approved}</div>
+            <div class="stat-label">Aprobados</div>
+          </div>
+          ${currentUserRole === 'admin' ? `
+          <div class="stat-card rejected">
+            <div class="stat-number" style="color: #E05444;">${stats.rejected}</div>
+            <div class="stat-label">Rechazados</div>
+          </div>
+          ` : ''}
+        </div>
+      `;
+      document.getElementById('dashboardContent').innerHTML = html;
+    })
+    .catch(error => {
+      document.getElementById('dashboardContent').innerHTML = '<span style="color: #E05444;">❌ Error: ' + error.message + '</span>';
+    });
+}
+
+// ============ REGISTROS ============
+function saveRecord() {
+  if (!currentUser) return;
+
+  const fecha = document.getElementById('inputFecha').value;
+  const empleado = document.getElementById('inputEmpleado').value.trim();
+  const entrada = document.getElementById('inputEntrada').value;
+  const salida = document.getElementById('inputSalida').value;
+  const cliente = document.getElementById('inputCliente').value.trim();
+  const tipo = document.getElementById('inputTipoHora').value;
+  const trabajo = document.getElementById('inputTrabajo').value.trim();
+
+  if (!fecha || !empleado || !entrada || !salida || !cliente || !tipo || !trabajo) {
+    showToast('⚠️ Completa todos los campos');
+    return;
+  }
+
+  const record = {
+    fecha: fecha,
+    empleado: empleado,
+    entrada: entrada,
+    salida: salida,
+    cliente: cliente,
+    tipo: tipo,
+    trabajo: trabajo,
+    status: currentUserRole === 'admin' ? 'approved' : 'pending',
+    createdBy: currentUser.uid,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  db.collection('records').add(record)
+    .then(() => {
+      showToast('✓ Registro guardado correctamente');
+      clearForm();
+      loadRecords();
+      loadDashboard();
+    })
+    .catch(error => showToast('❌ Error: ' + error.message));
+}
+
+function clearForm() {
+  document.getElementById('inputFecha').valueAsDate = new Date();
+  document.getElementById('inputEmpleado').value = '';
+  document.getElementById('inputEntrada').value = '';
+  document.getElementById('inputSalida').value = '';
+  document.getElementById('inputCliente').value = '';
+  document.getElementById('inputTipoHora').value = '';
+  document.getElementById('inputTrabajo').value = '';
+}
+
+function loadRecords() {
+  const tbody = document.getElementById('recordsTable');
+  
+  // Los colaboradores ven SOLO sus registros
+  const query = currentUserRole === 'admin'
+    ? db.collection('records').orderBy('createdAt', 'desc').limit(100)
+    : db.collection('records')
+        .where('createdBy', '==', currentUser.uid)
+        .orderBy('createdAt', 'desc')
+        .limit(50);
+
+  query.get()
+    .then(snapshot => {
+      tbody.innerHTML = '';
+
+      if (snapshot.empty) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Sin registros</td></tr>';
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const fecha = data.fecha ? new Date(data.fecha + 'T00:00:00').toLocaleDateString('es-CR') : '—';
+        const statusClass = data.status === 'approved' ? 'approved' : (data.status === 'rejected' ? 'rejected' : 'pending');
+        const statusText = {
+          pending: 'Pendiente',
+          approved: 'Aprobado',
+          rejected: 'Rechazado'
+        }[data.status] || 'Pendiente';
+
+        const tipoClass = data.tipo === 'extra' ? 'extra' : 'doble';
+        const tipoText = data.tipo === 'extra' ? 'Extra (1x)' : 'Doble (2x)';
+
+        const row = `
+          <tr>
+            <td>${fecha}</td>
+            <td>${data.empleado || '—'}</td>
+            <td>${data.entrada || '—'}</td>
+            <td>${data.salida || '—'}</td>
+            <td>${data.cliente || '—'}</td>
+            <td><span class="badge ${tipoClass}">${tipoText}</span></td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${data.trabajo}">${data.trabajo || '—'}</td>
+            <td><span class="badge ${statusClass}">${statusText}</span></td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    })
+    .catch(error => {
+      tbody.innerHTML = `<tr><td colspan="8" style="color: #E05444;">❌ Error: ${error.message}</td></tr>`;
+    });
+}
+
+// ============ APROBACIONES (ADMIN ONLY) ============
+function loadApprovals() {
+  if (currentUserRole !== 'admin') {
+    showToast('❌ No tienes permiso');
+    return;
+  }
+
+  db.collection('records')
+    .where('status', '==', 'pending')
+    .orderBy('createdAt', 'desc')
+    .get()
+    .then(snapshot => {
+      const tbody = document.getElementById('approvalsTable');
+      tbody.innerHTML = '';
+
+      if (snapshot.empty) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-success); padding: 2rem;">✓ No hay registros pendientes</td></tr>';
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const fecha = data.fecha ? new Date(data.fecha + 'T00:00:00').toLocaleDateString('es-CR') : '—';
+        const tipoClass = data.tipo === 'extra' ? 'extra' : 'doble';
+        const tipoText = data.tipo === 'extra' ? 'Extra (1x)' : 'Doble (2x)';
+
+        const row = `
+          <tr>
+            <td>${fecha}</td>
+            <td><strong>${data.empleado}</strong></td>
+            <td>${data.entrada} - ${data.salida}</td>
+            <td>${data.cliente}</td>
+            <td><span class="badge ${tipoClass}">${tipoText}</span></td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${data.trabajo}">${data.trabajo}</td>
+            <td><span class="badge pending">Pendiente</span></td>
+            <td>
+              <div class="record-actions">
+                <button class="btn btn-approve btn-small" onclick="approveRecord('${doc.id}')">✓ Aprobar</button>
+                <button class="btn btn-reject btn-small" onclick="rejectRecord('${doc.id}')">✗ Rechazar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    })
+    .catch(error => {
+      document.getElementById('approvalsTable').innerHTML = `<tr><td colspan="8" style="color: #E05444;">❌ Error: ${error.message}</td></tr>`;
+    });
+}
+
+function approveRecord(docId) {
+  db.collection('records').doc(docId).update({
+    status: 'approved',
+    updatedAt: new Date(),
+    approvedBy: currentUser.uid,
+    approvedAt: new Date()
+  })
+    .then(() => {
+      showToast('✓ Registro aprobado');
+      loadApprovals();
+      loadDashboard();
+    })
+    .catch(error => showToast('❌ Error: ' + error.message));
+}
+
+function rejectRecord(docId) {
+  const reason = prompt('Ingresa motivo del rechazo (opcional):');
+  if (reason === null) return; // Canceló
+
+  db.collection('records').doc(docId).update({
+    status: 'rejected',
+    updatedAt: new Date(),
+    rejectedBy: currentUser.uid,
+    rejectedAt: new Date(),
+    rejectionReason: reason || '—'
+  })
+    .then(() => {
+      showToast('✓ Registro rechazado');
+      loadApprovals();
+      loadDashboard();
+    })
+    .catch(error => showToast('❌ Error: ' + error.message));
+}
+
+// ============ USUARIOS (ADMIN ONLY) ============
+function createUser() {
+  if (currentUserRole !== 'admin') {
+    showToast('❌ No tienes permiso');
+    return;
+  }
+
+  const email = document.getElementById('inputNewUser').value.trim();
+  const role = document.getElementById('inputUserRole').value;
+
+  if (!email) {
+    showToast('⚠️ Ingresa un email');
+    return;
+  }
+
+  const tempPassword = Math.random().toString(36).slice(-12);
+
+  auth.createUserWithEmailAndPassword(email, tempPassword)
+    .then(userCredential => {
+      const uid = userCredential.user.uid;
+
+      return db.collection('users').doc(uid).set({
+        email: email,
+        role: role,
+        createdAt: new Date(),
+        createdBy: currentUser.uid,
+        estado: 'activo'
+      }).then(() => {
+        showToast(`✓ Usuario creado. Contraseña temporal: ${tempPassword}`);
+        document.getElementById('inputNewUser').value = '';
+        loadUsers();
+      });
+    })
+    .catch(error => showToast('❌ Error: ' + error.message));
+}
+
+function loadUsers() {
+  if (currentUserRole !== 'admin') return;
+
+  db.collection('users').get()
+    .then(snapshot => {
+      const tbody = document.getElementById('usersList');
+      tbody.innerHTML = '';
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const createdDate = data.createdAt 
+          ? new Date(data.createdAt.toDate()).toLocaleDateString('es-CR') 
+          : '—';
+        
+        const row = `
+          <tr>
+            <td>${data.email}</td>
+            <td><span class="role-tag ${data.role}">${data.role.toUpperCase()}</span></td>
+            <td>${createdDate}</td>
+            <td>
+              <button class="btn btn-reject btn-small" onclick="deleteUser('${doc.id}')">🗑️ Eliminar</button>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    })
+    .catch(error => {
+      document.getElementById('usersList').innerHTML = `<tr><td colspan="4" style="color: #E05444;">❌ Error: ${error.message}</td></tr>`;
+    });
+}
+
+function deleteUser(uid) {
+  if (confirm('⚠️ ¿Eliminar este usuario? Esta acción no se puede deshacer.')) {
+    db.collection('users').doc(uid).delete()
+      .then(() => {
+        showToast('✓ Usuario eliminado');
+        loadUsers();
+      })
+      .catch(error => showToast('❌ Error: ' + error.message));
+  }
+}
+
+// ============ UTILIDADES ============
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function closeModal() {
+  document.getElementById('modalDetail').classList.remove('active');
+}
+
+// ============ AUTENTICACIÓN OBSERVER ============
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    loadUserRole();
+  } else {
+    currentUser = null;
+    currentUserRole = null;
+    document.getElementById('loginScreen').classList.add('active');
+    document.getElementById('appContainer').style.display = 'none';
+  }
+});
+
+// Fecha default
+document.getElementById('inputFecha').valueAsDate = new Date();
+</script>
+
+</body>
+</html>
