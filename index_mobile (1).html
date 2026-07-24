@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <title>Control de Horas – Beirute</title>
+  <meta name="theme-color" content="#0f2540" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Beirute Horas" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- SheetJS para exportar Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ─── RESET MOBILE ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    /* Evitar zoom en inputs */
+    input, select, textarea, button { 
+      font-family: inherit;
+      font-size: 16px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f4f6f9;
+      color: #1a2535;
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ─── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --navy:    #0f2540;
+      --navy-2:  #1a3a5c;
+      --cyan:    #00c4cc;
+      --cyan-lt: #e0f9fa;
+      --gold:    #f5a623;
+      --green:   #27ae60;
+      --red:     #e74c3c;
+      --gray-1:  #f4f6f9;
+      --gray-2:  #dde3ec;
+      --gray-3:  #9aa5b4;
+      --text:    #1a2535;
+      --white:   #ffffff;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(15,37,64,.12);
+      --pad-mobile: 16px;
+    }
+
+    /* ─── SCREENS ────────────────────────────────────────── */
+    .screen { display: none; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ─── LOGIN ──────────────────────────────────────────── */
+    #loginScreen {
+      min-height: 100vh;
+      background: linear-gradient(145deg, var(--navy) 0%, var(--navy-2) 100%);
+      align-items: center;
+      justify-content: center;
+      padding: var(--pad-mobile);
+    }
+
+    .login-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px var(--pad-mobile);
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-logo .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .login-logo .icon {
+      width: 48px; height: 48px;
+      background: var(--navy);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .login-logo .icon svg { width: 28px; height: 28px; fill: var(--cyan); }
+
+    .login-logo h1 { 
+      font-size: 1.5rem; font-weight: 700; color: var(--navy); 
+      line-height: 1.2; display: flex; flex-direction: column;
+    }
+
+    .login-logo h1 span { 
+      font-size: 0.7rem; font-weight: 500; color: var(--gray-3); 
+      letter-spacing: .05em; text-transform: uppercase; 
+    }
+
+    .login-card h2 { 
+      font-size: 1.2rem; font-weight: 600; color: var(--navy); 
+      margin-bottom: 24px; text-align: center; 
+    }
+
+    .field { margin-bottom: 18px; }
+    .field label { 
+      display: block; font-size: 0.85rem; font-weight: 600; 
+      color: var(--gray-3); text-transform: uppercase; 
+      letter-spacing: .05em; margin-bottom: 8px; 
+    }
+
+    .field input {
+      width: 100%; 
+      padding: 14px 12px;
+      border: 2px solid var(--gray-2); 
+      border-radius: var(--radius);
+      font-size: 16px; 
+      color: var(--text);
+      transition: border-color .2s, background .2s;
+      background: var(--white);
+    }
+
+    .field input:focus { 
+      outline: none; 
+      border-color: var(--cyan); 
+      background: #f0fdfe;
+    }
+
+    .btn-primary {
+      width: 100%; 
+      padding: 16px;
+      background: var(--navy); 
+      color: var(--white);
+      border: none; 
+      border-radius: var(--radius);
+      font-size: 1rem; 
+      font-weight: 600; 
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      margin-top: 8px;
+      touch-action: manipulation;
+    }
+
+    .btn-primary:active { 
+      transform: scale(0.98); 
+      background: var(--navy-2);
+    }
+
+    .login-error {
+      color: var(--red); 
+      font-size: 0.9rem;
+      text-align: center; 
+      margin-top: 16px;
+      min-height: 24px;
+    }
+
+    /* ─── APP SHELL ──────────────────────────────────────── */
+    #appScreen { 
+      min-height: 100vh; 
+      display: none; 
+      flex-direction: column;
+      background: var(--gray-1);
+    }
+
+    #appScreen.active { display: flex; }
+
+    /* Top Nav */
+    .topnav {
+      background: var(--navy);
+      color: var(--white);
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between;
+      padding: 12px var(--pad-mobile);
+      height: auto;
+      min-height: 56px;
+      position: sticky; 
+      top: 0; 
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      gap: 12px;
+    }
+
+    .topnav .logo { 
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .topnav .logo .dot { 
+      width: 8px; 
+      height: 8px; 
+      background: var(--cyan); 
+      border-radius: 50%; 
+      flex-shrink: 0;
+    }
+
+    .topnav .logo span { 
+      font-size: 0.95rem; 
+      font-weight: 700; 
+      letter-spacing: .02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topnav .user-info { 
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .topnav .user-info .badge {
+      background: var(--cyan); 
+      color: var(--navy);
+      font-size: 0.65rem; 
+      font-weight: 700; 
+      padding: 2px 8px;
+      border-radius: 20px; 
+      text-transform: uppercase; 
+      letter-spacing: .05em;
+      white-space: nowrap;
+    }
+
+    .topnav .user-info .badge.admin { background: var(--gold); }
+
+    .topnav .user-info span { 
+      font-size: 0.8rem; 
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn-logout {
+      background: rgba(255,255,255,.15); 
+      border: 1px solid rgba(255,255,255,.3);
+      color: var(--white); 
+      border-radius: 6px; 
+      padding: 6px 10px;
+      font-size: 0.75rem; 
+      cursor: pointer; 
+      transition: background .2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-logout:active { background: rgba(255,255,255,.25); }
+
+    /* Tab bar */
+    .tabbar {
+      background: var(--white);
+      border-bottom: 2px solid var(--gray-2);
+      display: flex;
+      padding: 0 var(--pad-mobile);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+      padding: 14px 16px;
+      font-size: 0.9rem; 
+      font-weight: 600;
+      color: var(--gray-3); 
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      white-space: nowrap;
+      transition: color .2s, border-color .2s;
+      touch-action: manipulation;
+    }
+
+    .tab:active { color: var(--navy); }
+    .tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+    /* Content */
+    .content { 
+      flex: 1; 
+      padding: var(--pad-mobile);
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Tab panels */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ─── CARDS ──────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 1rem; 
+      font-weight: 700; 
+      color: var(--navy);
+      margin-bottom: 16px;
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+    }
+
+    .card-title svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    /* ─── FORM GRID ──────────────────────────────────────── */
+    .form-grid { 
+      display: grid; 
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .form-grid.cols2 { grid-template-columns: 1fr 1fr; }
+
+    @media (max-width: 480px) { 
+      .form-grid.cols2 { grid-template-columns: 1fr; } 
+    }
+
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .form-group { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 6px;
+    }
+
+    .form-group label { 
+      font-size: 0.8rem; 
+      font-weight: 600; 
+      color: var(--gray-3); 
+      text-transform: uppercase; 
+      letter-spacing: .04em;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 14px 12px;
+      border: 2px solid var(--gray-2); 
+      border-radius: 10px;
+      font-size: 16px; 
+      color: var(--text);
+      transition: border-color .2s, background .2s;
+      background: var(--white);
+      line-height: 1.5;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { 
+      outline: none; 
+      border-color: var(--cyan);
+      background: #f0fdfe;
+    }
+
+    /* Select customizado */
+    .form-group select {
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa5b4' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 20px;
+      padding-right: 36px;
+      cursor: pointer;
+    }
+
+    /* ─── BUTTONS ────────────────────────────────────────── */
+    .btn {
+      padding: 13px 16px;
+      border: none; 
+      border-radius: 10px;
+      font-size: 0.9rem; 
+      font-weight: 600;
+      cursor: pointer; 
+      transition: background .2s, transform .1s;
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px;
+      justify-content: center;
+      touch-action: manipulation;
+      line-height: 1;
+      min-height: 44px;
+    }
+
+    .btn.btn-primary { 
+      background: var(--navy); 
+      color: var(--white); 
+      width: 100%;
+    }
+
+    .btn.btn-primary:active { 
+      background: var(--navy-2);
+      transform: scale(0.98);
+    }
+
+    .btn.btn-secondary { 
+      background: var(--gray-2); 
+      color: var(--text); 
+    }
+
+    .btn.btn-secondary:active { 
+      background: var(--gray-3); 
+      color: var(--white); 
+    }
+
+    .btn.btn-outline { 
+      background: transparent; 
+      border: 2px solid var(--gray-2); 
+      color: var(--text); 
+    }
+
+    .btn.btn-outline:active { 
+      background: var(--gray-1); 
+    }
+
+    .btn.btn-danger { 
+      background: var(--red); 
+      color: var(--white); 
+    }
+
+    .btn.btn-danger:active { 
+      background: #c0392b; 
+    }
+
+    .btn.btn-sm { 
+      padding: 8px 12px; 
+      font-size: 0.8rem;
+      min-height: 40px;
+    }
+
+    .btn.btn-block { 
+      width: 100%; 
+      display: flex;
+    }
+
+    .btn:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
+
+    /* ─── TABLES (MOBILE FRIENDLY) ───────────────────────── */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: -16px;
+      padding: 0 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      min-width: 640px;
+    }
+
+    table thead {
+      background: var(--gray-1);
+      position: sticky;
+      top: 0;
+      border-bottom: 2px solid var(--gray-2);
+    }
+
+    table th {
+      padding: 12px 8px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--navy);
+      white-space: nowrap;
+    }
+
+    table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--gray-2);
+    }
+
+    table tbody tr:active { background: var(--cyan-lt); }
+
+    /* ─── CHIPS ──────────────────────────────────────────── */
+    .chip {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .chip-pend { background: #fff3cd; color: #856404; }
+    .chip-aprov { background: #d4edda; color: #155724; }
+    .chip-rech { background: #f8d7da; color: #721c24; }
+
+    /* ─── MODAL ──────────────────────────────────────────── */
+    .modal {
+      display: none;
+      position: fixed; 
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0,0,0,.5);
+      z-index: 999;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+      animation: slideUp .3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal.open { display: flex; }
+
+    .modal-content {
+      background: var(--white);
+      border-radius: 16px 16px 0 0;
+      padding: 24px var(--pad-mobile) calc(24px + env(safe-area-inset-bottom));
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      box-shadow: 0 -10px 40px rgba(0,0,0,.2);
+    }
+
+    .modal-content h3 { 
+      color: var(--navy); 
+      margin-bottom: 18px;
+      font-size: 1.1rem;
+    }
+
+    .modal-buttons { 
+      display: flex; 
+      gap: 10px; 
+      margin-top: 24px;
+      flex-direction: column-reverse;
+    }
+
+    .modal-buttons .btn {
+      width: 100%;
+    }
+
+    /* ─── TOAST ──────────────────────────────────────────── */
+    .toast-container {
+      position: fixed; 
+      bottom: 20px; 
+      right: 16px;
+      left: 16px;
+      z-index: 10000;
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--navy);
+      color: var(--white);
+      padding: 14px 16px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+      animation: slideIn .3s ease;
+      pointer-events: auto;
+    }
+
+    .toast.success { background: var(--green); }
+    .toast.error { background: var(--red); }
+
+    @keyframes slideIn { 
+      from { transform: translateY(400px); opacity: 0; } 
+      to { transform: translateY(0); opacity: 1; } 
+    }
+
+    /* ─── PAGINATION ────────────────────────────────────── */
+    .pagination {
+      display: flex; 
+      gap: 8px; 
+      margin-top: 16px;
+      justify-content: center; 
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .pagination .info { 
+      font-size: 0.8rem; 
+      color: var(--gray-3);
+      width: 100%;
+      text-align: center;
+    }
+
+    /* ─── QUICK INPUT (Acceso rápido) ────────────────────── */
+    .quick-input {
+      background: var(--cyan-lt);
+      border-left: 4px solid var(--cyan);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .quick-input label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--gray-3);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .quick-input .time-display {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--navy);
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Mejorar spacing en mobile */
+    @media (max-width: 480px) {
+      :root {
+        --pad-mobile: 12px;
+      }
+
+      .card {
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+
+      .content {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      .btn {
+        min-height: 48px;
+        font-size: 0.95rem;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        padding: 16px 12px;
+        font-size: 18px;
+      }
+
+      .topnav {
+        padding: 10px 12px;
+        min-height: 52px;
+      }
+
+      .form-group label {
+        font-size: 0.78rem;
+      }
+    }
+
+    /* Landscape mode */
+    @media (max-width: 600px) and (orientation: landscape) {
+      .topnav { min-height: 48px; }
+      .tabbar { padding: 0 10px; }
+      .tab { padding: 10px 12px; }
+      .card { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<!-- LOGIN SCREEN -->
+<!-- ═════════════════════════════════════════════════════════ -->
+<div id="loginScreen" class="screen active">
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--pad-mobile);">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="brand">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1"></circle>
+              <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m3.08 3.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m3.08-3.08l4.24-4.24"></path>
+            </svg>
+          </div>
+          <h1>Beirute<span>Control de Horas</span></h1>
+        </div>
+      </div>
+      <h2>Iniciar Sesión</h2>
+      <div class="field">
+        <label>Email</label>
+        <input id="loginEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input id="loginPass" type="password" placeholder="••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn-primary" onclick="handleLogin()">Entrar</button>
+      <div class="login-error" id="loginErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<!-- APP SCREEN -->
+<!-- ═════════════════════════════════════════════════════════ -->
+<div id="appScreen" class="screen">
+  <!-- Top Navigation -->
+  <div class="topnav">
+    <div class="logo">
+      <div class="dot"></div>
+      <span>Beirute Horas</span>
+    </div>
+    <div class="user-info">
+      <span id="userDisplay"></span>
+      <span class="badge" id="rolBadge">Usuario</span>
+      <button class="btn-logout" onclick="handleLogout()">Salir</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tabbar">
+    <div class="tab active" onclick="switchTab('mis')">📝 Mis Horas</div>
+    <div class="tab" onclick="switchTab('admin')" id="adminTab" style="display:none">⚙️ Admin</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- ═════════════════════════════════════════════════════ -->
+    <!-- MIS HORAS ═════════════════════════════════════════ -->
+    <!-- ═════════════════════════════════════════════════════ -->
+    <div id="misPanel" class="panel active">
+      <!-- Reloj de entrada rápida -->
+      <div class="card">
+        <div style="text-align: center; margin-bottom: 16px;">
+          <div style="font-size: 0.8rem; color: var(--gray-3); text-transform: uppercase; margin-bottom: 8px;">Hora Actual</div>
+          <div id="relojActual" style="font-size: 2.5rem; font-weight: 700; font-family: 'Courier New', monospace; color: var(--navy);">--:--</div>
+        </div>
+      </div>
+
+      <!-- Formulario Simplificado -->
+      <div class="card">
+        <div class="card-title">📋 Nuevo Registro</div>
+        
+        <div class="form-group">
+          <label>Fecha</label>
+          <input id="nFecha" type="date" />
+        </div>
+
+        <div class="form-grid cols2">
+          <div class="form-group">
+            <label>Entrada</label>
+            <input id="nEntrada" type="time" />
+          </div>
+          <div class="form-group">
+            <label>Salida</label>
+            <input id="nSalida" type="time" />
+          </div>
+        </div>
+
+        <div class="form-grid cols2">
+          <div class="form-group">
+            <label>Ordinarias</label>
+            <input id="nOrdinarias" type="number" step="0.5" min="0" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>Extras</label>
+            <input id="nExtras" type="number" step="0.5" min="0" placeholder="0" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Horas Dobles</label>
+          <input id="nDobles" type="number" step="0.5" min="0" placeholder="0" />
+        </div>
+
+        <div class="form-group">
+          <label>Actividad *</label>
+          <select id="nActividad">
+            <option value="">Seleccionar...</option>
+            <option value="Mantenimiento">🔧 Mantenimiento</option>
+            <option value="Instalación">⚙️ Instalación</option>
+            <option value="Reparación">🛠️ Reparación</option>
+            <option value="Atención al Cliente">👥 Atención al Cliente</option>
+            <option value="Limpieza">🧹 Limpieza</option>
+            <option value="Inventario">📦 Inventario</option>
+            <option value="Otra">📝 Otra</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label>Notas (opcional)</label>
+          <textarea id="nObservaciones" rows="2" placeholder="Detalles adicionales..." style="resize: vertical;"></textarea>
+        </div>
+
+        <button class="btn btn-primary" onclick="guardarHora()" style="margin-top: 12px;">
+          ✅ Guardar Registro
+        </button>
+      </div>
+
+      <!-- Mis Registros -->
+      <div class="card">
+        <div class="card-title">📅 Mis Registros</div>
+        <div class="table-responsive">
+          <table id="misTabla">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Entrada</th><th>Salida</th><th>Ord</th>
+                <th>Ext</th><th>Dob</th><th>Estado</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="misTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="misPaginacion"></div>
+        <div id="misEmpty" style="text-align:center;color:var(--gray-3);padding:32px 16px;font-size:0.9rem">
+          📭 Sin registros. ¡Crea uno nuevo!
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════ -->
+    <!-- ADMIN ═════════════════════════════════════════════ -->
+    <!-- ═════════════════════════════════════════════════════ -->
+    <div id="adminPanel" class="panel">
+      <!-- Filtros Rápidos -->
+      <div class="card">
+        <div class="card-title">🔍 Filtros</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Desde</label>
+            <input id="admDesde" type="date" />
+          </div>
+          <div class="form-group">
+            <label>Hasta</label>
+            <input id="admHasta" type="date" />
+          </div>
+        </div>
+        <div class="form-grid cols2">
+          <div class="form-group">
+            <label>Empleado</label>
+            <select id="admEmpleado"><option value="">Todos</option></select>
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select id="admEstado">
+              <option value="">Todos</option>
+              <option value="pendiente">⏳ Pendiente</option>
+              <option value="aprobado">✅ Aprobado</option>
+              <option value="rechazado">❌ Rechazado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen -->
+      <div class="card">
+        <div class="card-title">📊 Resumen</div>
+        <div class="form-grid cols2">
+          <div style="text-align:center;padding:14px;background:var(--gray-1);border-radius:10px">
+            <div style="color:var(--gray-3);font-size:0.75rem;text-transform:uppercase;margin-bottom:4px">Ordinarias</div>
+            <div style="font-size:1.6rem;font-weight:700;color:var(--navy)" id="admTotalOrd">0.00</div>
+          </div>
+          <div style="text-align:center;padding:14px;background:var(--gray-1);border-radius:10px">
+            <div style="color:var(--gray-3);font-size:0.75rem;text-transform:uppercase;margin-bottom:4px">Extras</div>
+            <div style="font-size:1.6rem;font-weight:700;color:var(--gold)" id="admTotalExt">0.00</div>
+          </div>
+          <div style="text-align:center;padding:14px;background:var(--gray-1);border-radius:10px;grid-column:1/-1">
+            <div style="color:var(--gray-3);font-size:0.75rem;text-transform:uppercase;margin-bottom:4px">Dobles</div>
+            <div style="font-size:1.6rem;font-weight:700;color:var(--red)" id="admTotalDob">0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registros de Todos -->
+      <div class="card">
+        <div class="card-title">📋 Registros</div>
+        <div class="table-responsive">
+          <table id="admTabla">
+            <thead>
+              <tr>
+                <th>Empleado</th><th>Fecha</th><th>Entrada</th><th>Salida</th>
+                <th>Ord</th><th>Ext</th><th>Dob</th><th>Estado</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="admTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="admPaginacion"></div>
+        <div id="admEmpty" style="text-align:center;color:var(--gray-3);padding:24px;font-size:0.9rem">
+          📭 Sin registros
+        </div>
+      </div>
+
+      <!-- Usuarios -->
+      <div class="card">
+        <div class="card-title">👥 Usuarios</div>
+        <button class="btn btn-primary" id="btnNuevoUsuario" style="margin-bottom: 12px;">
+          ➕ Nuevo Usuario
+        </button>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="userTbody"></tbody>
+          </table>
+        </div>
+        <div id="userEmpty" style="text-align:center;color:var(--gray-3);padding:20px">
+          Sin usuarios
+        </div>
+      </div>
+
+      <!-- Exportar -->
+      <div class="card">
+        <div class="card-title">💾 Exportar</div>
+        <button class="btn btn-primary" id="btnExportFull">
+          📥 Descargar Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<!-- MODALS ════════════════════════════════════════════════════ -->
+<!-- ═════════════════════════════════════════════════════════ -->
+
+<!-- Modal Nuevo Usuario -->
+<div id="modalUsuario" class="modal">
+  <div class="modal-content">
+    <h3>Crear Nuevo Usuario</h3>
+    <div class="form-group">
+      <label>Nombre Completo</label>
+      <input id="uNombre" type="text" placeholder="Juan Pérez" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input id="uEmail" type="email" placeholder="juan@example.com" />
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input id="uPass" type="password" placeholder="••••••" />
+    </div>
+    <div class="form-group">
+      <label>Rol</label>
+      <select id="uRol">
+        <option value="colaborador">Colaborador</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" id="btnSaveUser">Crear Usuario</button>
+      <button class="btn btn-secondary" id="btnCancelUser">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Eliminación -->
+<div id="modalConfirm" class="modal">
+  <div class="modal-content">
+    <h3>⚠️ Confirmar Eliminación</h3>
+    <p style="color:var(--text);margin:16px 0">¿Estás seguro? Esta acción no se puede deshacer.</p>
+    <div class="modal-buttons">
+      <button class="btn btn-danger" id="btnConfirmDelete">Eliminar</button>
+      <button class="btn btn-secondary" id="btnCancelDelete">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ═════════════════════════════════════════════════════════ */
+/* FIREBASE CONFIG */
+/* ═════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDsrra_dLaOz6WIKuzsX14XfvCerYIe8GA",
+  authDomain: "horas-bodega-e481f.firebaseapp.com",
+  projectId: "horas-bodega-e481f",
+  storageBucket: "horas-bodega-e481f.firebasestorage.app",
+  messagingSenderId: "503086134246",
+  appId: "1:503086134246:web:55fe935fd12d254d72dc27"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* ═════════════════════════════════════════════════════════ */
+/* VARIABLES GLOBALES */
+/* ═════════════════════════════════════════════════════════ */
+let currentUser = null;
+let currentUid = null;
+let currentRole = null;
+let currentNombre = null;
+let deleteDocId = null;
+
+let misHorasLastDoc = null;
+let admRegistrosLastDoc = null;
+const PAGE_SIZE = 50;
+
+// Reloj
+function actualizarReloj() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('relojActual').textContent = `${h}:${m}`;
+}
+setInterval(actualizarReloj, 1000);
+actualizarReloj();
+
+// Establecer fecha de hoy por defecto
+document.getElementById('nFecha').valueAsDate = new Date();
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW no disponible'));
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* AUTENTICACIÓN */
+/* ═════════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUid = user.uid;
+    currentUser = user;
+    const docSnap = await db.collection('users').doc(user.uid).get();
+    if (docSnap.exists) {
+      const userData = docSnap.data();
+      currentRole = userData.rol || 'colaborador';
+      currentNombre = userData.nombre || user.email;
+    }
+
+    document.getElementById('loginScreen').classList.remove('active');
+    document.getElementById('appScreen').classList.add('active');
+    document.getElementById('userDisplay').textContent = currentNombre || user.email;
+    document.getElementById('rolBadge').textContent = capitalize(currentRole);
+    if (currentRole === 'admin') {
+      document.getElementById('rolBadge').classList.add('admin');
+      document.getElementById('adminTab').style.display = 'block';
+    }
+
+    cargarMisHoras();
+    if (currentRole === 'admin') {
+      cargarAdminRegistros();
+      cargarAdminUsuarios();
+      setupAdminListeners();
+    }
+  } else {
+    document.getElementById('appScreen').classList.remove('active');
+    document.getElementById('loginScreen').classList.add('active');
+    currentUser = null;
+    currentUid = null;
+    currentRole = null;
+  }
+});
+
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errDiv = document.getElementById('loginErr');
+  errDiv.textContent = '';
+
+  if (!email || !pass) {
+    errDiv.textContent = 'Completá email y contraseña';
+    return;
+  }
+
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e) {
+    errDiv.textContent = e.message;
+  }
+}
+
+function handleLogout() {
+  auth.signOut();
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* VALIDACIÓN */
+/* ═════════════════════════════════════════════════════════ */
+function validarRegistroHoras(entrada, salida, ordinarias, extras, dobles, fecha, actividad) {
+  const errors = [];
+
+  if (!entrada || !salida) errors.push('Entrada y salida requeridas');
+  if (entrada >= salida) errors.push('Entrada debe ser antes de salida');
+  
+  ordinarias = parseFloat(ordinarias) || 0;
+  extras = parseFloat(extras) || 0;
+  dobles = parseFloat(dobles) || 0;
+
+  if (ordinarias < 0 || extras < 0 || dobles < 0) 
+    errors.push('Las horas no pueden ser negativas');
+
+  const totalHoras = ordinarias + extras + dobles;
+  if (totalHoras <= 0) errors.push('Debe registrar al menos 1 hora');
+
+  if (!actividad) errors.push('Selecciona una actividad');
+
+  const fech = new Date(fecha);
+  if (fech > new Date()) errors.push('No se puede registrar horas futuras');
+
+  return errors;
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* GUARDANDO HORA */
+/* ═════════════════════════════════════════════════════════ */
+async function guardarHora() {
+  const fecha = document.getElementById('nFecha').value;
+  const entrada = document.getElementById('nEntrada').value;
+  const salida = document.getElementById('nSalida').value;
+  const ordinarias = document.getElementById('nOrdinarias').value;
+  const extras = document.getElementById('nExtras').value;
+  const dobles = document.getElementById('nDobles').value;
+  const actividad = document.getElementById('nActividad').value;
+  const observaciones = document.getElementById('nObservaciones').value.trim();
+
+  const errors = validarRegistroHoras(entrada, salida, ordinarias, extras, dobles, fecha, actividad);
+  if (errors.length) {
+    toast(errors.join('. '), 'error');
+    return;
+  }
+
+  try {
+    const diaNum = new Date(fecha).getDay();
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+    await db.collection('registros').add({
+      uid: currentUid,
+      nombre: currentNombre,
+      fecha,
+      dia: dias[diaNum],
+      entrada,
+      salida,
+      ordinarias: parseFloat(ordinarias) || 0,
+      extras: parseFloat(extras) || 0,
+      dobles: parseFloat(dobles) || 0,
+      actividad,
+      observaciones,
+      estado: 'pendiente',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    toast('✅ Registro guardado', 'success');
+    ['nEntrada','nSalida','nOrdinarias','nExtras','nDobles','nActividad','nObservaciones']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('nFecha').valueAsDate = new Date();
+
+    cargarMisHoras();
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* CARGAR MIS HORAS */
+/* ═════════════════════════════════════════════════════════ */
+async function cargarMisHoras(reset = true) {
+  if (reset) misHorasLastDoc = null;
+
+  try {
+    let query = db.collection('registros')
+      .where('uid', '==', currentUid)
+      .orderBy('fecha', 'desc')
+      .limit(PAGE_SIZE + 1);
+
+    if (misHorasLastDoc) {
+      query = query.startAfter(misHorasLastDoc);
+    }
+
+    const snap = await query.get();
+    const docs = snap.docs.slice(0, PAGE_SIZE);
+    
+    if (docs.length > 0) {
+      misHorasLastDoc = docs[docs.length - 1];
+    }
+
+    const registros = docs.map(d => ({id: d.id, ...d.data()}));
+    localStorage.setItem('misHoras_cache', JSON.stringify(registros));
+    localStorage.setItem('cache_timestamp', Date.now());
+
+    renderTablaMisHoras(registros, snap.docs.length > PAGE_SIZE);
+  } catch(e) {
+    console.error('Error:', e);
+    const cached = JSON.parse(localStorage.getItem('misHoras_cache') || '[]');
+    if (cached.length) {
+      toast('📡 Datos en caché (sin conexión)', 'info');
+      renderTablaMisHoras(cached, false);
+    }
+  }
+}
+
+function renderTablaMisHoras(registros, hayMas) {
+  const tbody = document.getElementById('misTbody');
+  tbody.innerHTML = '';
+
+  registros.forEach(r => {
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${r.fecha}</td>
+        <td>${r.entrada}</td>
+        <td>${r.salida}</td>
+        <td>${(r.ordinarias||0).toFixed(1)}</td>
+        <td>${(r.extras||0).toFixed(1)}</td>
+        <td>${(r.dobles||0).toFixed(1)}</td>
+        <td><span class="chip chip-${r.estado==='aprobado'?'aprov':r.estado==='rechazado'?'rech':'pend'}">${r.estado === 'aprobado' ? '✅' : r.estado === 'rechazado' ? '❌' : '⏳'}</span></td>
+        <td><button class="btn btn-outline btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></td>
+      </tr>
+    `);
+  });
+
+  document.getElementById('misEmpty').style.display = registros.length ? 'none' : '';
+  
+  const pag = document.getElementById('misPaginacion');
+  pag.innerHTML = '';
+  if (registros.length > 0) {
+    pag.innerHTML = `
+      <div class="info">${registros.length} registros</div>
+      ${hayMas ? '<button class="btn btn-secondary btn-sm" onclick="cargarMisHoras(false)">Cargar más</button>' : ''}
+    `;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* ADMIN: REGISTROS */
+/* ═════════════════════════════════════════════════════════ */
+async function cargarAdminRegistros(reset = true) {
+  if (reset) admRegistrosLastDoc = null;
+
+  const desde = document.getElementById('admDesde').value;
+  const hasta = document.getElementById('admHasta').value;
+  const empleado = document.getElementById('admEmpleado').value;
+  const estado = document.getElementById('admEstado').value;
+
+  try {
+    let query = db.collection('registros').orderBy('fecha', 'desc');
+
+    if (desde) query = query.where('fecha', '>=', desde);
+    if (hasta) query = query.where('fecha', '<=', hasta);
+    if (empleado) query = query.where('uid', '==', empleado);
+    if (estado) query = query.where('estado', '==', estado);
+
+    query = query.limit(PAGE_SIZE + 1);
+
+    if (admRegistrosLastDoc) {
+      query = query.startAfter(admRegistrosLastDoc);
+    }
+
+    const snap = await query.get();
+    const docs = snap.docs.slice(0, PAGE_SIZE);
+    
+    if (docs.length > 0) {
+      admRegistrosLastDoc = docs[docs.length - 1];
+    }
+
+    const registros = docs.map(d => ({id: d.id, ...d.data()}));
+
+    let tOrd = 0, tExt = 0, tDob = 0;
+    registros.forEach(r => {
+      tOrd += r.ordinarias || 0;
+      tExt += r.extras || 0;
+      tDob += r.dobles || 0;
+    });
+
+    renderTablaAdmin(registros, snap.docs.length > PAGE_SIZE, tOrd, tExt, tDob);
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+}
+
+function renderTablaAdmin(registros, hayMas, tOrd, tExt, tDob) {
+  const tbody = document.getElementById('admTbody');
+  tbody.innerHTML = '';
+
+  registros.forEach(r => {
+    tbody.insertAdjacentHTML('beforeend',`
+      <tr>
+        <td><strong>${r.nombre}</strong></td>
+        <td>${r.fecha}</td>
+        <td>${r.entrada}</td>
+        <td>${r.salida}</td>
+        <td>${(r.ordinarias||0).toFixed(1)}</td>
+        <td>${(r.extras||0).toFixed(1)}</td>
+        <td>${(r.dobles||0).toFixed(1)}</td>
+        <td><span class="chip chip-${r.estado==='aprobado'?'aprov':r.estado==='rechazado'?'rech':'pend'}">${r.estado === 'aprobado' ? '✅' : r.estado === 'rechazado' ? '❌' : '⏳'}</span></td>
+        <td style="display:flex;gap:4px">
+          ${r.estado!=='aprobado'?`<button class="btn btn-sm" style="background:var(--green);color:white;padding:6px 8px" onclick="cambiarEstado('${r.id}','aprobado')">✓</button>`:''}
+          ${r.estado!=='rechazado'?`<button class="btn btn-sm btn-danger" style="padding:6px 8px" onclick="cambiarEstado('${r.id}','rechazado')">✗</button>`:''}
+        </td>
+      </tr>`);
+  });
+
+  document.getElementById('admTotalOrd').textContent = tOrd.toFixed(2);
+  document.getElementById('admTotalExt').textContent = tExt.toFixed(2);
+  document.getElementById('admTotalDob').textContent = tDob.toFixed(2);
+  document.getElementById('admEmpty').style.display = registros.length ? 'none' : '';
+
+  const pag = document.getElementById('admPaginacion');
+  pag.innerHTML = '';
+  if (registros.length > 0) {
+    pag.innerHTML = `
+      <div class="info">${registros.length} registros</div>
+      ${hayMas ? '<button class="btn btn-secondary btn-sm" onclick="cargarAdminRegistros(false)">Cargar más</button>' : ''}
+    `;
+  }
+}
+
+async function cambiarEstado(id, estado) {
+  try {
+    await db.collection('registros').doc(id).update({ estado });
+    toast(`✅ Registro ${estado}`, 'success');
+    cargarAdminRegistros();
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* ADMIN: USUARIOS */
+/* ═════════════════════════════════════════════════════════ */
+async function cargarAdminUsuarios() {
+  try {
+    const snap = await db.collection('users').orderBy('nombre').get();
+    const users = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    ['admEmpleado'].forEach(selId => {
+      const sel = document.getElementById(selId);
+      const val = sel.value;
+      sel.innerHTML = '<option value="">Todos</option>';
+      users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id; opt.textContent = u.nombre;
+        sel.appendChild(opt);
+      });
+      sel.value = val;
+    });
+
+    const tbody = document.getElementById('userTbody');
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      tbody.insertAdjacentHTML('beforeend',`
+        <tr>
+          <td><strong>${u.nombre}</strong></td>
+          <td style="font-size:0.8rem">${u.email||''}</td>
+          <td><span class="chip" style="background:${u.rol==='admin'?'#fff3cd':'var(--gray-1)'};color:${u.rol==='admin'?'#856404':'var(--gray-3)'}">${u.rol === 'admin' ? 'Admin' : 'Usuario'}</span></td>
+          <td><button class="btn btn-danger btn-sm" onclick="eliminarUsuario('${u.id}')">❌</button></td>
+        </tr>`);
+    });
+    document.getElementById('userEmpty').style.display = users.length ? 'none' : '';
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+}
+
+document.getElementById('btnNuevoUsuario').addEventListener('click', () => {
+  ['uNombre','uEmail','uPass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('uRol').value='colaborador';
+  document.getElementById('modalUsuario').classList.add('open');
+});
+
+document.getElementById('btnCancelUser').addEventListener('click', () =>
+  document.getElementById('modalUsuario').classList.remove('open'));
+
+document.getElementById('btnSaveUser').addEventListener('click', async () => {
+  const nombre = document.getElementById('uNombre').value.trim();
+  const email  = document.getElementById('uEmail').value.trim();
+  const pass   = document.getElementById('uPass').value;
+  const rol    = document.getElementById('uRol').value;
+
+  if (!nombre||!email||pass.length<6) {
+    toast('Completá todos los campos (contraseña mín. 6)', 'error');
+    return;
+  }
+
+  try {
+    const secondApp = firebase.initializeApp(firebase.app().options, 'temp-' + Date.now());
+    const cred = await secondApp.auth().createUserWithEmailAndPassword(email, pass);
+    await db.collection('users').doc(cred.user.uid).set({ nombre, email, rol });
+    await secondApp.delete();
+
+    toast(`✅ ${nombre} creado`, 'success');
+    document.getElementById('modalUsuario').classList.remove('open');
+    cargarAdminUsuarios();
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+  }
+});
+
+async function eliminarUsuario(uid) {
+  if (!confirm('¿Eliminar usuario?')) return;
+  try {
+    await db.collection('users').doc(uid).delete();
+    toast('✅ Usuario eliminado', 'success');
+    cargarAdminUsuarios();
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* ELIMINAR REGISTRO */
+/* ═════════════════════════════════════════════════════════ */
+document.getElementById('btnCancelDelete').addEventListener('click', () => {
+  document.getElementById('modalConfirm').classList.remove('open');
+  deleteDocId = null;
+});
+
+document.getElementById('btnConfirmDelete').addEventListener('click', async () => {
+  if (!deleteDocId) return;
+  try {
+    await db.collection('registros').doc(deleteDocId).delete();
+    document.getElementById('modalConfirm').classList.remove('open');
+    deleteDocId = null;
+    toast('✅ Eliminado', 'success');
+    cargarMisHoras();
+    if (currentRole==='admin') cargarAdminRegistros();
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+});
+
+function eliminarRegistro(id) {
+  deleteDocId = id;
+  document.getElementById('modalConfirm').classList.add('open');
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* EXPORTAR EXCEL */
+/* ═════════════════════════════════════════════════════════ */
+document.getElementById('btnExportFull').addEventListener('click', async () => {
+  const desde    = document.getElementById('admDesde').value;
+  const hasta    = document.getElementById('admHasta').value;
+  const empleado = document.getElementById('admEmpleado').value;
+  const estado   = document.getElementById('admEstado').value;
+
+  toast('⏳ Preparando descarga...', 'info');
+
+  try {
+    let query = db.collection('registros').orderBy('fecha');
+    
+    if (desde) query = query.where('fecha', '>=', desde);
+    if (hasta) query = query.where('fecha', '<=', hasta);
+    if (empleado) query = query.where('uid', '==', empleado);
+    if (estado) query = query.where('estado', '==', estado);
+
+    const snap = await query.get();
+    const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    exportarExcel(rows, `horas_${desde||'todas'}`);
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 'error');
+  }
+});
+
+function exportarExcel(rows, nombre='horas') {
+  if (!rows.length) { toast('❌ Sin datos para exportar', 'error'); return; }
+
+  const porEmpleado = {};
+  rows.forEach(r => {
+    if (!porEmpleado[r.nombre]) porEmpleado[r.nombre] = [];
+    porEmpleado[r.nombre].push(r);
+  });
+
+  const wb = XLSX.utils.book_new();
+
+  const resumenData = [['Empleado','Total Ordinarias','Total Extras','Total Dobles','Total General']];
+  Object.entries(porEmpleado).forEach(([emp,regs]) => {
+    const tO=regs.reduce((a,r)=>a+(r.ordinarias||0),0);
+    const tE=regs.reduce((a,r)=>a+(r.extras||0),0);
+    const tD=regs.reduce((a,r)=>a+(r.dobles||0),0);
+    resumenData.push([emp, +tO.toFixed(2), +tE.toFixed(2), +tD.toFixed(2), +(tO+tE+tD).toFixed(2)]);
+  });
+  const wsRes = XLSX.utils.aoa_to_sheet(resumenData);
+  XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen');
+
+  Object.entries(porEmpleado).forEach(([emp,regs]) => {
+    const data = [['Nombre','Fecha','Día','Entrada','Salida','Ord','Ext','Dob','Actividad','Estado']];
+    regs.forEach(r => data.push([
+      r.nombre, r.fecha, r.dia||'', r.entrada, r.salida,
+      +(r.ordinarias||0).toFixed(2),
+      +(r.extras||0).toFixed(2),
+      +(r.dobles||0).toFixed(2),
+      r.actividad, capitalize(r.estado)
+    ]));
+    const tO=regs.reduce((a,r)=>a+(r.ordinarias||0),0);
+    const tE=regs.reduce((a,r)=>a+(r.extras||0),0);
+    const tD=regs.reduce((a,r)=>a+(r.dobles||0),0);
+    data.push(['TOTAL','','','','',+tO.toFixed(2),+tE.toFixed(2),+tD.toFixed(2),'','']);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [20,12,12,12,12,10,10,10,20,12].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, emp.substring(0,31));
+  });
+
+  XLSX.writeFile(wb, `${nombre}.xlsx`);
+  toast('✅ Excel descargado', 'success');
+}
+
+/* ═════════════════════════════════════════════════════════ */
+/* UTIL */
+/* ═════════════════════════════════════════════════════════ */
+function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
+
+function toast(msg, type='info') {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  
+  if (tab === 'mis') {
+    document.querySelector('.tab:nth-child(1)').classList.add('active');
+    document.getElementById('misPanel').classList.add('active');
+    cargarMisHoras();
+  } else {
+    document.querySelector('.tab:nth-child(2)').classList.add('active');
+    document.getElementById('adminPanel').classList.add('active');
+  }
+}
+
+function setupAdminListeners() {
+  ['admDesde','admHasta','admEmpleado','admEstado'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      admRegistrosLastDoc = null;
+      cargarAdminRegistros();
+    });
+  });
+}
+</script>
+</body>
+</html>
