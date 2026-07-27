@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beirute — Control de Horas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+<!-- ═══════════════════════════════════════════════════════
+     FIREBASE CONFIG — reemplaza estos valores con los tuyos
+     desde Firebase Console > Configuración del proyecto
+     ═══════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs,
+         query, where, orderBy, onSnapshot, setDoc, getDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ─── REEMPLAZA ESTO CON TU CONFIGURACIÓN ─────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyDsrra_dLaOz6WIKuzsX14XfvCerYIe8GA",
+  authDomain:        "horas-bodega-e481f.firebaseapp.com",
+  projectId:         "horas-bodega-e481f",
+  storageBucket:     "horas-bodega-e481f.firebasestorage.app",
+  messagingSenderId: "503086134246",
+  appId:             "1:503086134246:web:55fe935fd12d254d72dc27"
+};
+// ─────────────────────────────────────────────────────────
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ════════════════════════════════════════════════════════════
+// CONSTANTES GLOBALES
+// ════════════════════════════════════════════════════════════
+const DIAS  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+let currentUser  = null;  // objeto usuario de Auth
+let userProfile  = null;  // doc de Firestore: { nombre, rol, email }
+let curY = new Date().getFullYear();
+let curM = new Date().getMonth();
+let allRecords   = [];    // registros visibles para el usuario actual
+let editingId    = null;  // ID Firestore del registro en edición
+let workBlockCount = 0;
+let unsubRecords = null;  // listener de Firestore activo
+
+// ════════════════════════════════════════════════════════════
+// UTILIDADES DE TIEMPO Y CÁLCULO DE HORAS
+// ════════════════════════════════════════════════════════════
+
+// Convierte "HH:MM" → minutos desde medianoche
+function toMin(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Calcula minutos en cada categoría para un bloque [inicioMin, finMin] en una fecha dada.
+// Los bloques pueden cruzar la medianoche (fin < inicio).
+// Retorna { ordinaria, extra, doble } en HORAS (decimales).
+function calcCategories(startStr, endStr, dateStr) {
+  if (!startStr || !endStr || !dateStr) return { ordinaria: 0, extra: 0, doble: 0 };
+
+  const d = new Date(dateStr + 'T12:00:00');
+  const dow = d.getDay(); // 0=domingo, 6=sábado
+
+  let sMin = toMin(startStr);
+  let eMin = toMin(endStr);
+  if (eMin <= sMin) eMin += 1440; // cruce de medianoche
+
+  let ord = 0, ext = 0, dob = 0;
+
+  // Itera minuto a minuto en bloques de 1 min para simplicidad y exactitud
+  for (let m = sMin; m < eMin; m++) {
+    const minOfDay = m % 1440;
+    const hod = minOfDay / 60; // hora del día (decimal)
+    // El día de semana puede cambiar si cruzamos medianoche
+    const actualDow = (m >= 1440) ? (dow + 1) % 7 : dow;
+
+    let cat = 'doble'; // default
+
+    if (actualDow === 0) {
+      // DOMINGO — todo doble
+      cat = 'doble';
+    } else if (actualDow === 6) {
+      // SÁBADO
+      if (hod >= 7 + 45/60 && hod < 12) {
+        cat = 'ordinaria'; // 7:45 – 12:00
+      } else if (hod >= 12 && hod < 22) {
+        cat = 'extra';     // 12:00 – 22:00
+      } else {
+        cat = 'doble';     // antes de 7:45 o 22:00 – 06:00
+      }
+    } else {
+      // LUN – VIE
+      if (hod >= 7 + 45/60 && hod < 17.5) {
+        cat = 'ordinaria'; // 7:45 – 17:30
+      } else if ((hod >= 6 && hod < 7 + 45/60) || (hod >= 17.5 && hod < 22)) {
+        cat = 'extra';     // 6:00–7:45 y 17:30–22:00
+      } else {
+        cat = 'doble';     // antes 6:00 o después 22:00
+      }
+    }
+
+    if (cat === 'ordinaria') ord++;
+    else if (cat === 'extra') ext++;
+    else dob++;
+  }
+
+  return { ordinaria: ord / 60, extra: ext / 60, doble: dob / 60 };
+}
+
+// Suma categorías de todos los turnos de un registro
+function totalCats(record) {
+  const turnos = record.turnos || [];
+  let ord = 0, ext = 0, dob = 0;
+  turnos.forEach(t => {
+    const c = calcCategories(t.entrada, t.salida, record.fecha);
+    ord += c.ordinaria;
+    ext += c.extra;
+    dob += c.doble;
+  });
+  return { ordinaria: ord, extra: ext, doble: dob };
+}
+
+function totalHoras(record) {
+  const c = totalCats(record);
+  return c.ordinaria + c.extra + c.doble;
+}
+
+function fmtH(h) { return h > 0 ? h.toFixed(2) + 'h' : '—'; }
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+
+window.doLogin = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  err.textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    err.textContent = 'Correo o contraseña incorrectos.';
+  }
+};
+
+window.doLogout = async function() {
+  if (unsubRecords) unsubRecords();
+  await signOut(auth);
+};
+
+window.doReset = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { document.getElementById('loginError').textContent = 'Ingresa tu correo primero.'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    document.getElementById('loginError').textContent = '';
+    showToast('✓ Correo de recuperación enviado');
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'No se pudo enviar el correo.';
+  }
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    console.log('👤 Usuario autenticado:', user.uid);
+    
+    // Cargar perfil desde Firestore (colección: 'users')
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (snap.exists()) {
+      userProfile = snap.data();
+      console.log('✅ Perfil cargado:', userProfile);
+    } else {
+      // Perfil no configurado aún
+      userProfile = { nombre: user.email, rol: 'colaborador', email: user.email };
+      console.log('⚠️ Perfil no existe en Firestore, usando valores por defecto');
+    }
+    showApp();
+  } else {
+    currentUser = null;
+    userProfile = null;
+    showLogin();
+  }
+});
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display   = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display   = 'block';
+  document.getElementById('userNameDisplay').textContent = userProfile?.nombre || currentUser.email;
+  document.getElementById('userRolDisplay').textContent  =
+    userProfile?.rol === 'admin' ? 'Administrador' : 'Colaborador';
+
+  // Mostrar/ocultar controles de admin
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = userProfile?.rol === 'admin' ? '' : 'none';
+  });
+
+  initTabs();
+  subscribeRecords();
+  if (userProfile?.rol === 'admin') loadUsuariosAdmin();
+}
+
+// ════════════════════════════════════════════════════════════
+// FIRESTORE — REGISTROS
+// ════════════════════════════════════════════════════════════
+
+function subscribeRecords() {
+  if (unsubRecords) unsubRecords();
+  let q;
+  
+  if (userProfile?.rol === 'admin') {
+    // ADMIN ve TODO (sin filtro)
+    q = query(collection(db, 'registros'), orderBy('fecha', 'desc'));
+    console.log('👑 Admin: Cargando TODOS los registros');
+  } else {
+    // COLABORADOR ve SOLO sus registros
+    q = query(
+      collection(db, 'registros'),
+      where('uid', '==', currentUser.uid),  // ✅ FILTRO CRÍTICO
+      orderBy('fecha', 'desc')
+    );
+    console.log('👤 Colaborador:', currentUser.email, '| UID:', currentUser.uid);
+  }
+  
+  unsubRecords = onSnapshot(q, (snap) => {
+    allRecords = snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, ...data };
+    });
+    console.log(`✅ Se cargaron ${allRecords.length} registros`);
+    renderTabla();
+    renderStats();
+  }, (err) => {
+    console.error('❌ Error en listener Firestore:', err.message);
+    showToast('⚠️ Error al cargar registros');
+  });
+}
+
+async function saveRecord(data) {
+  try {
+    if (editingId) {
+      // ACTUALIZAR (NO modificar uid, es dato crítico)
+      const updateData = {
+        ...data,
+        // NO incluir uid en update (es inmutable)
+        // NO incluir creadoEn en update (es dato de auditoría)
+      };
+      console.log('📝 Actualizando registro:', editingId);
+      await updateDoc(doc(db, 'registros', editingId), updateData);
+      showToast('✓ Registro actualizado');
+      
+    } else {
+      // CREAR NUEVO (SIEMPRE con uid del usuario actual)
+      const docData = {
+        ...data,
+        uid: currentUser.uid,  // ✅ SIEMPRE incluir
+        nombreColaborador: userProfile?.nombre || currentUser.email,
+        estado: 'pendiente',
+        creadoEn: new Date().toISOString(),
+        actualizadoEn: new Date().toISOString()
+      };
+      
+      console.log('➕ NUEVO registro:');
+      console.log('   UID propietario:', currentUser.uid);
+      console.log('   Colaborador:', docData.nombreColaborador);
+      console.log('   Fecha:', data.fecha);
+      
+      const docRef = await addDoc(collection(db, 'registros'), docData);
+      console.log('✅ Guardado en Firestore con ID:', docRef.id);
+      showToast('✓ Registro guardado');
+      
+      // Pequeño delay para que Firestore sincronice
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  } catch (error) {
+    console.error('❌ Error en saveRecord:', error);
+    throw error;
+  }
+}
+
+window.deleteRecord = async function(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  await deleteDoc(doc(db, 'registros', id));
+  showToast('✓ Registro eliminado');
+};
+
+window.aprobarRegistro = async function(id) {
+  await updateDoc(doc(db, 'registros', id), { estado: 'aprobado', revisadoEn: new Date().toISOString(), revisadoPor: userProfile?.nombre || currentUser.email });
+  showToast('✓ Registro aprobado');
+};
+
+window.rechazarRegistro = async function(id) {
+  const motivo = prompt('Motivo del rechazo (opcional):') || '';
+  await updateDoc(doc(db, 'registros', id), { estado: 'rechazado', motivoRechazo: motivo, revisadoEn: new Date().toISOString(), revisadoPor: userProfile?.nombre || currentUser.email });
+  showToast('✗ Registro rechazado');
+};
+
+window.reenviarRegistro = async function(id) {
+  await updateDoc(doc(db, 'registros', id), { estado: 'pendiente', motivoRechazo: '', revisadoEn: null });
+  showToast('↩ Registro reenviado para revisión');
+};
+
+// ════════════════════════════════════════════════════════════
+// USUARIOS (ADMIN) — USAR SIEMPRE COLECCIÓN 'users'
+// ════════════════════════════════════════════════════════════
+
+async function loadUsuariosAdmin() {
+  const snap = await getDocs(collection(db, 'users'));  // ✅ Usar 'users' (antes era 'usuarios')
+  const list  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderUsuarios(list);
+}
+
+function renderUsuarios(list) {
+  const tbody = document.getElementById('tbodyUsuarios');
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin usuarios registrados</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(u => `
+    <tr>
+      <td>${u.nombre || '—'}</td>
+      <td style="color:var(--text-secondary)">${u.email || '—'}</td>
+      <td><span class="badge ${u.rol === 'admin' ? 'badge-admin' : 'badge-colab'}">${u.rol === 'admin' ? 'Admin' : 'Colaborador'}</span></td>
+      <td>
+        <button class="icon-btn-sm" title="Cambiar rol" onclick="toggleRol('${u.id}','${u.rol}')">
+          <i class="ti ti-switch-horizontal"></i>
+        </button>
+        <button class="icon-btn-sm danger" title="Eliminar usuario" onclick="eliminarUsuarioDoc('${u.id}')">
+          <i class="ti ti-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+window.toggleRol = async function(uid, currentRol) {
+  const newRol = currentRol === 'admin' ? 'colaborador' : 'admin';
+  if (!confirm(`¿Cambiar rol a ${newRol === 'admin' ? 'Administrador' : 'Colaborador'}?`)) return;
+  await updateDoc(doc(db, 'users', uid), { rol: newRol });  // ✅ Usar 'users' (antes era 'usuarios')
+  showToast('✓ Rol actualizado');
+  loadUsuariosAdmin();
+};
+
+window.eliminarUsuarioDoc = async function(uid) {
+  if (!confirm('¿Eliminar este usuario del sistema? (solo el perfil, no la cuenta Auth)')) return;
+  await deleteDoc(doc(db, 'users', uid));  // ✅ Usar 'users' (antes era 'usuarios')
+  showToast('✓ Usuario eliminado');
+  loadUsuariosAdmin();
+};
+
+window.crearUsuarioPerfil = async function() {
+  const uid    = document.getElementById('nuUid').value.trim();
+  const nombre = document.getElementById('nuNombre').value.trim();
+  const email  = document.getElementById('nuEmail').value.trim();
+  const rol    = document.getElementById('nuRol').value;
+  if (!uid || !nombre || !email) { showToast('⚠ Completa todos los campos'); return; }
+  await setDoc(doc(db, 'users', uid), { nombre, email, rol });  // ✅ Usar 'users'
+  showToast('✓ Perfil creado en Firestore');
+  document.getElementById('nuUid').value = '';
+  document.getElementById('nuNombre').value = '';
+  document.getElementById('nuEmail').value = '';
+  loadUsuariosAdmin();
+  closeModalUsuario();
+};
+
+// ════════════════════════════════════════════════════════════
+// RENDER TABLA DE REGISTROS
+// ════════════════════════════════════════════════════════════
+
+function getFiltered() {
+  const isAdmin = userProfile?.rol === 'admin';
+  
+  return allRecords.filter(r => {
+    // Validación básica
+    if (!r.fecha || !r.uid) return false;
+    
+    // Verificar que la fecha pertenezca al mes/año actual
+    const d = new Date(r.fecha + 'T12:00:00');
+    const mesValido = d.getFullYear() === curY && d.getMonth() === curM;
+    if (!mesValido) return false;
+    
+    // ✅ DOBLE VERIFICACIÓN: Colaboradores solo ven sus propios registros
+    // (aunque la query en Firestore ya filtra, esto agrega seguridad)
+    if (!isAdmin && r.uid !== currentUser?.uid) {
+      console.warn('⚠️ Intento de acceso a registro de otro usuario:', r.id);
+      return false;
+    }
+    
+    return true;
+  }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+function renderStats() {
+  const rows = getFiltered();
+  let ord = 0, ext = 0, dob = 0;
+  rows.forEach(r => {
+    const c = totalCats(r);
+    ord += c.ordinaria;
+    ext += c.extra;
+    dob += c.doble;
+  });
+  const statsDiv = document.getElementById('stats');
+  if (!statsDiv) return;
+  statsDiv.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Ordinarias</div><div class="stat-value">${ord.toFixed(2)}<span style="font-size:13px">h</span></div></div>
+    <div class="stat-card"><div class="stat-label">Extras</div><div class="stat-value">${ext.toFixed(2)}<span style="font-size:13px">h</span></div></div>
+    <div class="stat-card"><div class="stat-label">Dobles</div><div class="stat-value">${dob.toFixed(2)}<span style="font-size:13px">h</span></div></div>
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${(ord+ext+dob).toFixed(2)}<span style="font-size:13px">h</span></div></div>
+  `;
+}
+
+function renderTabla() {
+  const rows = getFiltered();
+  const tbody = document.getElementById('tbody');
+  if (!tbody) return;
+  
+  const isAdmin = userProfile?.rol === 'admin';
+  
+  if (!rows.length) {
+    const colSpan = isAdmin ? 9 : 8;
+    tbody.innerHTML = `<tr><td colspan="${colSpan}" class="empty">Sin registros para este mes</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  rows.forEach(r => {
+    // ✅ VALIDACIÓN: Asegurar que no mostramos datos de otros usuarios
+    if (!isAdmin && r.uid !== currentUser?.uid) {
+      console.error('🚨 VIOLACIÓN DE SEGURIDAD: Se intentó mostrar registro de otro usuario');
+      return;
+    }
+
+    const cats = totalCats(r);
+    const turnos = r.turnos || [];
+    const primerTurno = turnos[0] || {};
+    
+    // Estados posibles: pendiente, aprobado, rechazado
+    const estadoBadge = r.estado === 'aprobado' 
+      ? 'badge-ok' 
+      : r.estado === 'rechazado' 
+      ? 'badge-danger' 
+      : 'badge-pending';
+    
+    const estadoTexto = r.estado === 'aprobado' 
+      ? 'Aprobado' 
+      : r.estado === 'rechazado' 
+      ? 'Rechazado' 
+      : 'Pendiente';
+
+    // Solo el propietario puede editar registros pendientes, o admin puede editar cualquiera
+    const canEdit = isAdmin || (r.uid === currentUser?.uid && r.estado === 'pendiente');
+
+    html += `<tr>
+      <td class="fecha-cell">${r.fecha}</td>
+      ${isAdmin ? `<td style="color:var(--text-secondary);font-size:13px">${r.nombreColaborador||'—'}</td>` : ''}
+      <td class="time-cell"><div class="time-val">${primerTurno.entrada||'—'}</div></td>
+      <td class="time-cell"><div class="time-val">${primerTurno.salida||'—'}</div></td>
+      <td class="horas-cell">
+        <div class="horas-group">
+          ${cats.ordinaria > 0 ? `<span class="badge ord">${cats.ordinaria.toFixed(2)}h</span>` : ''}
+          ${cats.extra > 0 ? `<span class="badge ext">${cats.extra.toFixed(2)}h</span>` : ''}
+          ${cats.doble > 0 ? `<span class="badge dob">${cats.doble.toFixed(2)}h</span>` : ''}
+        </div>
+      </td>
+      <td class="work-cell">${primerTurno.cliente||'—'}</td>
+      <td class="work-cell">${primerTurno.trabajo||'—'}</td>
+      <td><span class="badge ${estadoBadge}">${estadoTexto}</span></td>
+      <td>
+        <div class="btn-group">
+          ${canEdit ? `<button class="icon-btn-sm" title="Editar" onclick="openModalEdit('${r.id}')"><i class="ti ti-edit"></i></button>` : ''}
+          ${isAdmin ? `
+            ${r.estado === 'pendiente' ? `<button class="icon-btn-sm ok" title="Aprobar" onclick="aprobarRegistro('${r.id}')"><i class="ti ti-check"></i></button>` : ''}
+            ${r.estado === 'rechazado' ? `<button class="icon-btn-sm" title="Reenviar" onclick="reenviarRegistro('${r.id}')"><i class="ti ti-arrow-back"></i></button>` : ''}
+            ${r.estado === 'pendiente' ? `<button class="icon-btn-sm danger" title="Rechazar" onclick="rechazarRegistro('${r.id}')"><i class="ti ti-x"></i></button>` : ''}
+          ` : ''}
+          ${isAdmin ? `<button class="icon-btn-sm danger" title="Eliminar" onclick="deleteRecord('${r.id}')"><i class="ti ti-trash"></i></button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+
+    // Sub-rows para turnos adicionales
+    for (let i = 1; i < turnos.length; i++) {
+      const t = turnos[i];
+      html += `<tr class="sub-row">
+        <td class="time-cell"><div class="time-val" style="color:var(--text-secondary)">${t.entrada||'—'}</div></td>
+        <td class="time-cell"><div class="time-val" style="color:var(--text-secondary)">${t.salida||'—'}</div></td>
+        <td></td>
+        <td style="font-weight:500"><span style="color:var(--teal);margin-right:4px"><i class="ti ti-corner-down-right"></i></span>${t.cliente||'—'}</td>
+        <td class="work-cell">${t.trabajo||'—'}</td>
+      </tr>`;
+    }
+  });
+
+  tbody.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL — NUEVO / EDITAR REGISTRO
+// ════════════════════════════════════════════════════════════
+
+window.openModal = function() {
+  editingId = null;
+  workBlockCount = 0;
+  document.getElementById('workBlocks').innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Nuevo registro';
+  const today = new Date();
+  document.getElementById('fFecha').value =
+    `${curY}-${String(curM+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  addWorkBlock({}, '07:45');
+  document.getElementById('modalBg').style.display = 'flex';
+};
+
+window.openModalEdit = function(id) {
+  const r = allRecords.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  workBlockCount = 0;
+  document.getElementById('workBlocks').innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Editar registro';
+  document.getElementById('fFecha').value = r.fecha;
+  (r.turnos || []).forEach(t => addWorkBlock(t, ''));
+  if (!r.turnos?.length) addWorkBlock({}, '07:45');
+  document.getElementById('modalBg').style.display = 'flex';
+};
+
+window.closeModal = function() {
+  document.getElementById('modalBg').style.display = 'none';
+  editingId = null;
+};
+
+window.saveEntry = async function() {
+  const fecha = document.getElementById('fFecha').value;
+  if (!fecha) { showToast('⚠ Selecciona una fecha'); return; }
+  const turnos = getWorkBlocks();
+  if (!turnos.length || !turnos[0].entrada) { showToast('⚠ Agrega al menos una hora'); return; }
+
+  // Preview de categorías para mostrar
+  const record = { fecha, turnos };
+  const cats   = totalCats(record);
+
+  try {
+    await saveRecord({ fecha, turnos, cats });
+    closeModal();
+    
+    // Navegar al mes del registro guardado
+    const d = new Date(fecha + 'T12:00:00');
+    curY = d.getFullYear(); 
+    curM = d.getMonth();
+    
+    // IMPORTANTE: No llamar renderTabla() aquí
+    // El listener onSnapshot() actualizará automáticamente allRecords
+    // Esto evita mostrar datos viejos
+    console.log('✅ Entrada guardada. Esperando actualización del listener...');
+    
+  } catch(e) {
+    console.error('❌ Error:', e);
+    showToast('⚠ Error al guardar: ' + e.message);
+  }
+};
+
+function addWorkBlock(data, autoStart) {
+  workBlockCount++;
+  const num = workBlockCount;
+  const c = data || {};
+  const defEntrada = c.entrada || autoStart || '';
+  const defSalida  = c.salida  || '';
+  const div = document.createElement('div');
+  div.className = 'work-block';
+  div.id = `wb_${num}`;
+  div.innerHTML = `
+    <div class="work-block-header">
+      <span class="work-block-label"><i class="ti ti-clock" style="margin-right:5px"></i>Turno #${num}</span>
+      ${num > 1 ? `<button class="remove-work-btn" onclick="removeWorkBlock(${num})" title="Quitar"><i class="ti ti-x"></i></button>` : ''}
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-clock-play" style="margin-right:3px;color:var(--teal)"></i>Hora inicio</label>
+        <input type="time" id="wb_entrada_${num}" class="form-input" value="${defEntrada}" oninput="updateBlockHours(${num})">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-clock-stop" style="margin-right:3px;color:var(--danger)"></i>Hora fin</label>
+        <input type="time" id="wb_salida_${num}" class="form-input" value="${defSalida}" oninput="updateBlockHours(${num}); autoFillNext(${num})">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-building-factory-2" style="margin-right:3px;color:var(--orange)"></i>Cliente</label>
+        <input type="text" id="wb_cliente_${num}" class="form-input" value="${c.cliente||''}" placeholder="Nombre del cliente">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-briefcase" style="margin-right:3px;color:var(--purple)"></i>Trabajo</label>
+        <input type="text" id="wb_trabajo_${num}" class="form-input" value="${c.trabajo||''}" placeholder="Descripción del trabajo">
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <div style="flex:1">
+          <label class="form-label" style="color:var(--teal);font-weight:600">Horas</label>
+          <div class="time-result" id="wr_${num}">—</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('workBlocks').appendChild(div);
+  updateBlockHours(num);
+}
+
+window.removeWorkBlock = function(num) {
+  const el = document.getElementById(`wb_${num}`);
+  if (el) el.remove();
+};
+
+window.addNextBlock = function() {
+  addWorkBlock({}, '');
+};
+
+function updateBlockHours(num) {
+  const entrada = document.getElementById(`wb_entrada_${num}`)?.value;
+  const salida  = document.getElementById(`wb_salida_${num}`)?.value;
+  const fecha   = document.getElementById('fFecha')?.value;
+  const result  = document.getElementById(`wr_${num}`);
+  if (!result) return;
+  if (!entrada || !salida || !fecha) { result.textContent = '—'; return; }
+  const cats = calcCategories(entrada, salida, fecha);
+  const tot = cats.ordinaria + cats.extra + cats.doble;
+  result.textContent = tot > 0 ? tot.toFixed(2) + 'h' : '—';
+}
+
+window.autoFillNext = function(num) {
+  const nextEntrada = document.getElementById(`wb_entrada_${num+1}`);
+  const salida = document.getElementById(`wb_salida_${num}`);
+  if (nextEntrada && salida && !nextEntrada.value) {
+    nextEntrada.value = salida.value;
+    updateBlockHours(num+1);
+  }
+};
+
+function getWorkBlocks() {
+  const turnos = [];
+  for (let i = 1; i <= workBlockCount; i++) {
+    const entrada = document.getElementById(`wb_entrada_${i}`)?.value;
+    const salida  = document.getElementById(`wb_salida_${i}`)?.value;
+    const cliente = document.getElementById(`wb_cliente_${i}`)?.value || '';
+    const trabajo = document.getElementById(`wb_trabajo_${i}`)?.value || '';
+    if (entrada && salida) {
+      turnos.push({ entrada, salida, cliente, trabajo });
+    }
+  }
+  return turnos;
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL — CREAR USUARIO (ADMIN)
+// ════════════════════════════════════════════════════════════
+
+window.openModalUsuario = function() {
+  document.getElementById('nuUid').value = '';
+  document.getElementById('nuNombre').value = '';
+  document.getElementById('nuEmail').value = '';
+  document.getElementById('nuRol').value = 'colaborador';
+  document.getElementById('modalUsuarioBg').style.display = 'flex';
+};
+
+window.closeModalUsuario = function() {
+  document.getElementById('modalUsuarioBg').style.display = 'none';
+};
+
+// ════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════
+
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.style.display = 'none';
+      });
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.style.borderBottomColor = 'transparent';
+      });
+      document.getElementById(tabId).style.display = 'block';
+      btn.style.borderBottomColor = 'var(--teal)';
+    });
+  });
+  // Activate first tab
+  document.querySelector('.tab-btn').click();
+}
+
+// ════════════════════════════════════════════════════════════
+// CALENDARIO
+// ════════════════════════════════════════════════════════════
+
+window.changeMonth = function(delta) {
+  curM += delta;
+  if (curM < 0) { curM = 11; curY--; }
+  if (curM > 11) { curM = 0; curY++; }
+  document.getElementById('monthLabel').textContent = `${MESES[curM]} ${curY}`;
+  renderTabla();
+  renderStats();
+};
+
+function initMonth() {
+  document.getElementById('monthLabel').textContent = `${MESES[curM]} ${curY}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  toast.style.animation = 'slideIn 0.3s ease-out';
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in';
+    setTimeout(() => { toast.style.display = 'none'; }, 300);
+  }, 3000);
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORTAR XLSX
+// ════════════════════════════════════════════════════════════
+
+window.exportXLSX = async function() {
+  const rows = getFiltered();
+  if (!rows.length) { showToast('⚠ No hay datos para exportar'); return; }
+  
+  const isAdmin = userProfile?.rol === 'admin';
+  
+  // Encabezados
+  const headers = ['Fecha'];
+  if (isAdmin) headers.push('Colaborador');
+  headers.push('Entrada', 'Salida', 'Ordinaria', 'Extra', 'Doble', 'Total', 'Cliente', 'Trabajo', 'Estado');
+  
+  // Datos
+  const data = [headers];
+  rows.forEach(r => {
+    const cats = totalCats(r);
+    const turnos = r.turnos || [];
+    turnos.forEach((t, i) => {
+      const row = [r.fecha];
+      if (isAdmin) row.push(r.nombreColaborador || '—');
+      row.push(t.entrada || '—', t.salida || '—');
+      if (i === 0) {
+        row.push(cats.ordinaria.toFixed(2), cats.extra.toFixed(2), cats.doble.toFixed(2), 
+                 (cats.ordinaria + cats.extra + cats.doble).toFixed(2));
+      } else {
+        row.push('', '', '', '');
+      }
+      row.push(t.cliente || '—', t.trabajo || '—');
+      if (i === 0) row.push(r.estado === 'aprobado' ? 'Aprobado' : r.estado === 'rechazado' ? 'Rechazado' : 'Pendiente');
+      data.push(row);
+    });
+  });
+  
+  // Crear CSV
+  const csv = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `registros_${MESES[curM].toLowerCase()}_${curY}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Archivo exportado');
+};
+
+// Inicializar
+initMonth();
+</script>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --teal: #06b6d4;
+  --orange: #f97316;
+  --purple: #9333ea;
+  --danger: #ef4444;
+  --green: #22c55e;
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border: #475569;
+}
+
+body {
+  font-family: 'Barlow', sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* LOGIN */
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--teal);
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(6,182,212,0.1);
+}
+
+.btn-save {
+  width: 100%;
+  padding: 12px;
+  background: var(--teal);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-save:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* APP */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  gap: 2rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+
+.brand-label {
+  color: var(--text-primary);
+}
+
+.brand-divider {
+  width: 2px;
+  height: 20px;
+  background: var(--border);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-nav button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.month-label {
+  min-width: 150px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+
+.icon-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.user-chip-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-chip-rol {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.logout-btn {
+  background: var(--danger);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 0 2rem;
+}
+
+.tab-btn {
+  padding: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+/* MAIN */
+.tab-pane {
+  display: none;
+}
+
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+/* TABLE */
+.table-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-title {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.table-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.add-btn {
+  background: var(--teal);
+  color: var(--bg);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  background: var(--bg);
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tr:hover {
+  background: var(--bg);
+}
+
+.sub-row {
+  background: rgba(6,182,212,0.05);
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.fecha-cell {
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.time-cell, .time-val {
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+}
+
+.horas-cell {
+  min-width: 200px;
+}
+
+.horas-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-ok {
+  background: rgba(34,197,94,0.2);
+  color: #22c55e;
+}
+
+.badge-pending {
+  background: rgba(249,115,22,0.2);
+  color: #f97316;
+}
+
+.badge-danger {
+  background: rgba(239,68,68,0.2);
+  color: #ef4444;
+}
+
+.badge-admin {
+  background: rgba(6,182,212,0.2);
+  color: var(--teal);
+}
+
+.badge-colab {
+  background: rgba(147,51,234,0.2);
+  color: #9333ea;
+}
+
+.ord { background: rgba(34,197,94,0.2); color: #22c55e; }
+.ext { background: rgba(249,115,22,0.2); color: #f97316; }
+.dob { background: rgba(239,68,68,0.2); color: #ef4444; }
+.mini-badge { padding: 2px 8px; font-size: 10px; }
+
+.btn-group {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-btn-sm {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.icon-btn-sm:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.icon-btn-sm.ok {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.icon-btn-sm.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* MODAL */
+.modal-bg {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.work-block {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.work-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.work-block-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  display: flex;
+  align-items: center;
+}
+
+.remove-work-btn {
+  background: var(--danger);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.time-result {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--teal);
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.add-work-btn {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.btn-cancel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* USUARIOS */
+.usuarios-card {
+  margin-top: 2rem;
+}
+
+.instrucciones {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+.instrucciones strong {
+  color: var(--teal);
+}
+
+/* TOAST */
+.toast {
+  display: none;
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  z-index: 2000;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
+/* FOOTER */
+.app-footer {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  .header-right {
+    width: 100%;
+    margin-left: 0;
+  }
+  .month-nav, .user-chip {
+    flex: 1;
+  }
+  .tabs {
+    padding: 0 1rem;
+  }
+  .main {
+    padding: 1rem;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .modal {
+    max-width: 95%;
+    max-height: 95vh;
+  }
+}
+
+select.form-input {
+  cursor: pointer;
+}
+</style>
+
+</head>
+<body id="loginScreen" class="login-screen">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- LOGIN                                                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="login-box">
+  <div class="login-title">Beirute</div>
+  <div class="form-group">
+    <label class="form-label">Correo electrónico</label>
+    <input type="email" id="loginEmail" class="form-input" placeholder="usuario@beirute.com">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Contraseña</label>
+    <input type="password" id="loginPass" class="form-input" placeholder="••••••••">
+  </div>
+  <div id="loginError" class="login-error"></div>
+  <button class="btn-save" style="width:100%;justify-content:center" onclick="doLogin()">
+    <i class="ti ti-login"></i> Ingresar
+  </button>
+  <div class="login-footer">
+    <button class="link-btn" onclick="doReset()">¿Olvidaste tu contraseña?</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- APP                                                      -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="appScreen" style="display:none">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-label" style="font-size:15px;color:var(--teal)">Beirute</span>
+      <div class="brand-divider"></div>
+      <span class="brand-label">Control de Horas</span>
+    </div>
+    <div class="header-right">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <div class="month-label" id="monthLabel">—</div>
+        <button onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <button class="icon-btn" onclick="exportXLSX()" title="Exportar Excel">
+        <i class="ti ti-table-export"></i>
+      </button>
+      <div class="user-chip">
+        <div>
+          <div class="user-chip-name" id="userNameDisplay">—</div>
+          <div class="user-chip-rol"  id="userRolDisplay">—</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión">
+        <i class="ti ti-logout"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn" data-tab="tab-registros">
+      <i class="ti ti-clipboard-list"></i> Registros
+    </button>
+    <button class="tab-btn admin-only" data-tab="tab-usuarios">
+      <i class="ti ti-users"></i> Usuarios
+    </button>
+  </div>
+
+  <!-- TAB REGISTROS -->
+  <div id="tab-registros" class="tab-pane">
+    <div class="main">
+      <div class="stats" id="stats"></div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">
+            <i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--teal)"></i>
+            Registros del mes
+          </span>
+          <div class="table-actions">
+            <button class="add-btn" onclick="openModal()">
+              <i class="ti ti-plus"></i> Nuevo registro
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="mainTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th class="admin-only">Colaborador</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Horas</th>
+                <th>Cliente</th>
+                <th>Trabajo</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Leyenda de categorías -->
+      <div style="margin-top:1rem;display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted)">
+        <span><span class="mini-badge ord">ord</span> Lun–Vie 7:45–17:30 / Sáb 7:45–12:00</span>
+        <span><span class="mini-badge ext">ext</span> Lun–Vie 6:00–7:45 y 17:30–22:00 / Sáb 12:00–22:00</span>
+        <span><span class="mini-badge dob">dob</span> Domingo (todo el día) / Cualquier día 22:00–6:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB USUARIOS (ADMIN) -->
+  <div id="tab-usuarios" class="tab-pane admin-only">
+    <div class="main">
+
+      <div class="instrucciones">
+        <strong>¿Cómo crear un usuario?</strong><br>
+        1. Ve a <strong>Firebase Console → Authentication → Agregar usuario</strong> y crea la cuenta con correo y contraseña.<br>
+        2. Copia el <strong>UID</strong> que Firebase asigna.<br>
+        3. Usa el formulario de abajo para registrar su perfil en Firestore (nombre, rol, etc.).<br>
+        La próxima vez que ese usuario ingrese, el sistema reconocerá su rol automáticamente.
+      </div>
+
+      <div class="table-card usuarios-card">
+        <div class="table-header">
+          <span class="table-title"><i class="ti ti-users" style="margin-right:6px;color:var(--teal)"></i>Usuarios registrados</span>
+          <button class="add-btn" onclick="openModalUsuario()">
+            <i class="ti ti-plus"></i> Agregar usuario
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbodyUsuarios"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    Refrigeración Industrial Beirute &mdash; Control de Horas
+  </footer>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- MODAL — NUEVO / EDITAR REGISTRO                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalBg" style="display:none">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-clock-edit"></i><span id="modalTitle">Nuevo registro</span></div>
+
+    <div class="form-group">
+      <label class="form-label">Fecha</label>
+      <input type="date" id="fFecha" class="form-input" oninput="refreshAllBlocks()">
+    </div>
+
+    <div id="workBlocks"></div>
+
+    <button class="add-work-btn" onclick="addNextBlock()">
+      <i class="ti ti-plus"></i> Agregar otro turno
+    </button>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveEntry()">
+        <i class="ti ti-check"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- MODAL — CREAR USUARIO (ADMIN)                           -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalUsuarioBg" style="display:none">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-user-plus"></i>Agregar perfil de usuario</div>
+
+    <div class="form-group">
+      <label class="form-label">UID de Firebase Auth</label>
+      <input type="text" id="nuUid" class="form-input" placeholder="Ej: abc123xyz...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre completo</label>
+      <input type="text" id="nuNombre" class="form-input" placeholder="Nombre del colaborador">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Correo electrónico</label>
+      <input type="email" id="nuEmail" class="form-input" placeholder="correo@ejemplo.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rol</label>
+      <select id="nuRol" class="form-input">
+        <option value="colaborador">Colaborador</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModalUsuario()">Cancelar</button>
+      <button class="btn-save" onclick="crearUsuarioPerfil()">
+        <i class="ti ti-check"></i> Guardar perfil
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Recalcular todos los bloques cuando cambia la fecha (afecta la categoría por día de semana)
+function refreshAllBlocks() {
+  for (let i = 1; i <= workBlockCount; i++) {
+    if (document.getElementById(`wb_${i}`)) updateBlockHours(i);
+  }
+}
+</script>
+</body>
+</html>
