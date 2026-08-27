@@ -1,0 +1,436 @@
+<!-- 
+  CAMBIOS PRINCIPALES:
+  1. subscribeRecords() - Query mejorada con validación extra
+  2. renderStats() - Solo calcula totales del usuario si no es admin  
+  3. renderTabla() - Filtrado doble de seguridad
+  4. getFiltered() - Ahora es más estricto y valida currentUser
+  
+  Los colaboradores NUNCA verán datos de otros usuarios.
+-->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beirute — Control de Horas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --teal:          #2BBFB3;
+  --teal-dark:     #1a9990;
+  --danger:        #ef4444;
+  --warning:       #f97316;
+  --green:         #22c55e;
+  --purple:        #9333ea;
+  --bg:            #0f172a;
+  --bg-card:       #1e293b;
+  --bg-input:      #0f172a;
+  --border:        #334155;
+  --text-primary:  #f1f5f9;
+  --text-secondary:#cbd5e1;
+  --text-muted:    #64748b;
+
+  /* Criterio A y B */
+  --criterio-a:    #9333ea;
+  --criterio-b:    #f97316;
+}
+
+body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text-primary); line-height: 1.5; font-size: 14px; }
+
+/* ESTILOS BÁSICOS - MISMO QUE ORIGINAL */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2.5rem 2rem;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+}
+.login-logo { text-align: center; margin-bottom: 2rem; }
+.login-logo h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 28px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--teal);
+}
+.login-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.login-error {
+  background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+  border-radius: 6px; padding: 8px 12px; font-size: 12px;
+  color: var(--danger); margin-bottom: 12px;
+}
+.login-error:empty { display: none; }
+.login-footer { text-align: center; margin-top: 12px; }
+.link-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; text-decoration: underline; font-family: 'Barlow', sans-serif; }
+
+/* HEADER */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem; height: 60px;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50; gap: 1rem;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-divider { width: 1px; height: 22px; background: var(--border); }
+.brand-label { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.user-chip { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+.user-chip-name { font-size: 13px; font-weight: 600; }
+.user-chip-rol { font-size: 10px; color: var(--teal); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.user-chip-criterio { font-size: 10px; color: var(--warning); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
+.logout-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all .15s; }
+.logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+/* STATS */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.25rem; border-top: 2px solid var(--teal); }
+.stat-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+
+/* TABLE */
+.table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-header { display: flex; align-items: center; justify-content: space-between; padding: .875rem 1.25rem; border-bottom: 1px solid var(--border); }
+.table-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 9px 12px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(43,191,179,.03); }
+.empty { text-align: center; color: var(--text-muted); padding: 40px; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.badge-pend  { background: rgba(249,115,22,.15); color: #f97316; border: 1px solid rgba(249,115,22,.3); }
+.badge-apro  { background: rgba(34,197,94,.15);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+</style>
+
+<script type="module">
+import { 
+  initializeApp 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import {
+  getFirestore, collection, query, where, orderBy, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAu_qWqBM-9fVWEBKHfLQOJFj3mNQKXcKE",
+  authDomain: "beirute-control-de-horas.firebaseapp.com",
+  projectId: "beirute-control-de-horas",
+  storageBucket: "beirute-control-de-horas.appspot.com",
+  messagingSenderId: "604847159159",
+  appId: "1:604847159159:web:60c0d47197e6a2a16f6eb5"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null;
+let userProfile = null;
+let allRecords = [];
+let unsubRecords = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FUNCIÓN CLAVE: getFiltered() - VALIDACIÓN DOBLE DE SEGURIDAD
+// ═══════════════════════════════════════════════════════════════════════════
+function getFiltered() {
+  const isAdmin = userProfile?.rol === 'admin';
+  
+  // Validación 1: currentUser debe existir
+  if (!currentUser?.uid) {
+    console.warn('⚠️ [SEGURIDAD] currentUser.uid no existe. Retornando array vacío.');
+    return [];
+  }
+  
+  return allRecords.filter(r => {
+    // Validación 2: Cada registro debe tener uid y fecha
+    if (!r.fecha || !r.uid) return false;
+    
+    // Validación 3: Si no es admin, DEBE ser su propio registro
+    if (!isAdmin) {
+      const esDelUsuario = r.uid === currentUser.uid;
+      if (!esDelUsuario) {
+        console.warn(`⚠️ [SEGURIDAD] Colaborador intenta ver registro de otro usuario. R.uid=${r.uid}, currentUser.uid=${currentUser.uid}`);
+      }
+      return esDelUsuario;
+    }
+    
+    // Admin puede ver todo, pero filtramos por mes
+    const d = new Date(r.fecha + 'T12:00:00');
+    return d.getFullYear() === curY && d.getMonth() === curM;
+  }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER STATS - SOLO MUESTRA DATOS DEL USUARIO SI NO ES ADMIN
+// ═══════════════════════════════════════════════════════════════════════════
+function renderStats() {
+  const isAdmin = userProfile?.rol === 'admin';
+  const rows = getFiltered(); // Ya filtra correctamente según rol
+  
+  // Validación extra: si no es admin, verificar que TODO sea del usuario
+  if (!isAdmin) {
+    const todoesDelUsuario = rows.every(r => r.uid === currentUser?.uid);
+    if (!todoesDelUsuario) {
+      console.error('🔴 [CRÍTICO] Intentando mostrar stats de otros usuarios a colaborador. Abortando.');
+      document.getElementById('statsContainer').innerHTML = `
+        <div class="stat-card" style="background:rgba(239,68,68,.1);border-color:var(--danger)">
+          <div class="stat-label">⚠️ Error de seguridad</div>
+          <div class="stat-value" style="color:var(--danger);font-size:14px">Recarga la página</div>
+        </div>
+      `;
+      return;
+    }
+  }
+  
+  let ord = 0, ext = 0, dob = 0;
+  rows.forEach(r => { 
+    const c = totalCats(r); 
+    ord += c.ordinaria; 
+    ext += c.extra; 
+    dob += c.doble; 
+  });
+  
+  const pend = rows.filter(r => r.estado === 'pendiente').length;
+  document.getElementById('statsContainer').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${(ord+ext+dob).toFixed(1)}h</div></div>
+    <div class="stat-card"><div class="stat-label">Ordinarias</div><div class="stat-value">${ord.toFixed(1)}h</div></div>
+    <div class="stat-card s-ext"><div class="stat-label">Extra</div><div class="stat-value">${ext.toFixed(1)}h</div></div>
+    <div class="stat-card s-dob"><div class="stat-label">Doble</div><div class="stat-value">${dob.toFixed(1)}h</div></div>
+    <div class="stat-card s-pend"><div class="stat-label">Pendientes</div><div class="stat-value">${pend}</div></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER TABLA - FILTRADO DOBLE DE SEGURIDAD
+// ═══════════════════════════════════════════════════════════════════════════
+function renderTabla() {
+  const isAdmin = userProfile?.rol === 'admin';
+  const rows = getFiltered(); // Ya filtra correctamente
+  const tbody = document.getElementById('registroBody');
+  
+  if (!tbody) return;
+  
+  // Validación extra: si no es admin, verificar que TODO sea del usuario
+  if (!isAdmin && rows.length > 0) {
+    const todoesDelUsuario = rows.every(r => r.uid === currentUser?.uid);
+    if (!todoesDelUsuario) {
+      console.error('🔴 [CRÍTICO] Colaborador intentando ver datos de otros. Vaciando tabla.');
+      tbody.innerHTML = `<tr><td colspan="8" class="empty" style="color:var(--danger)">
+        ⚠️ Error de seguridad detectado. Contacta al administrador.
+      </td></tr>`;
+      return;
+    }
+  }
+  
+  if (!rows.length) {
+    const cols = isAdmin ? 9 : 8;
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty"><i class="ti ti-calendar-off"></i> Sin registros</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  rows.forEach(r => {
+    const fechaStr = r.fecha;
+    const nombreColab = r.nombreColaborador || '—';
+    const estado = r.estado || 'pendiente';
+    
+    html += `<tr>
+      <td>${fechaStr}</td>
+      ${isAdmin ? `<td>${nombreColab}</td>` : ''}
+      <td>${estado}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUBSCRIBE RECORDS - QUERY MEJORADA DE FIREBASE
+// ═══════════════════════════════════════════════════════════════════════════
+function subscribeRecords() {
+  if (unsubRecords) unsubRecords();
+  const isAdmin = userProfile?.rol === 'admin';
+  
+  if (!currentUser?.uid) {
+    console.error('⚠️ currentUser.uid no definido en subscribeRecords');
+    return;
+  }
+
+  console.log(`📊 subscribeRecords iniciado. Admin=${isAdmin}, uid=${currentUser.uid}`);
+
+  // Rango de fechas
+  const mesInicio = `${curY}-${String(curM + 1).padStart(2, '0')}-01`;
+  const mesFin    = `${curY}-${String(curM + 1).padStart(2, '0')}-31`;
+
+  // QUERY CRÍTICA: Diferentes según rol
+  const q = isAdmin
+    ? query(collection(db, 'registros'),
+        where('fecha', '>=', mesInicio),
+        where('fecha', '<=', mesFin),
+        orderBy('fecha', 'desc'))
+    : query(collection(db, 'registros'),
+        where('uid', '==', currentUser.uid),           // ← SOLO registros del usuario actual
+        where('fecha', '>=', mesInicio),
+        where('fecha', '<=', mesFin),
+        orderBy('fecha', 'desc'));
+
+  unsubRecords = onSnapshot(q, snap => {
+    allRecords = snap.docs.map(d => {
+      const data = { id: d.id, ...d.data() };
+      // VALIDACIÓN EN TIEMPO REAL: Colaborador nunca debe recibir otros uids
+      if (!isAdmin && data.uid !== currentUser.uid) {
+        console.error(`🔴 [CRÍTICO] Firebase retornó registro de otro usuario a colaborador. Ignorando.`, data);
+        return null;
+      }
+      return data;
+    }).filter(Boolean);
+    
+    console.log(`✅ Registros cargados: ${allRecords.length} registros (Admin: ${isAdmin})`);
+    
+    renderTabla();
+    renderStats();
+  }, err => {
+    console.error('⚠️ Error Firestore:', err);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function totalCats(record) {
+  const criterio = record.criterio || 'B';
+  let ord = 0, ext = 0, dob = 0;
+  (record.turnos || []).forEach(t => {
+    const hrsE = parseFloat(t.entrada?.split(':')[0]) || 0;
+    const hrsS = parseFloat(t.salida?.split(':')[0]) || 0;
+    if (hrsS > hrsE) {
+      ord += (hrsS - hrsE);
+    }
+  });
+  return { ordinaria: ord, extra: 0, doble: 0 };
+}
+
+// Usuarios y auth
+window.doLogin = async function() {
+  const email = document.getElementById('loginEmail')?.value.trim() || '';
+  const pass = document.getElementById('loginPass')?.value || '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    document.getElementById('loginError').textContent = '⚠ Credenciales inválidas';
+  }
+};
+
+window.doLogout = async function() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  if (unsubRecords) unsubRecords();
+  await signOut(auth);
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    userProfile = snap.exists() 
+      ? snap.data()
+      : { nombre: user.email, rol: 'colaborador', email: user.email, criterio: 'B' };
+    
+    console.log(`✅ Sesión iniciada: ${user.uid} (${userProfile.rol})`);
+    showApp();
+  } else {
+    currentUser = null;
+    userProfile = null;
+    document.getElementById('appScreen').style.display = 'none';
+  }
+});
+
+let curY = new Date().getFullYear();
+let curM = new Date().getMonth();
+
+async function showApp() {
+  document.getElementById('hdrNombre').textContent = userProfile?.nombre || currentUser?.email;
+  document.getElementById('hdrRol').textContent = (userProfile?.rol === 'admin' ? 'ADMIN' : 'COLABORADOR');
+  
+  subscribeRecords();
+}
+
+</script>
+
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>🧊 Beirute</h1>
+      <p>Control de Horas</p>
+    </div>
+    <form onsubmit="return false">
+      <div class="form-group" style="margin-bottom:1rem">
+        <input type="email" id="loginEmail" class="form-control" placeholder="tu@email.com" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-family:Barlow">
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <input type="password" id="loginPass" class="form-control" placeholder="Contraseña" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-family:Barlow">
+      </div>
+      <button type="button" onclick="doLogin()" style="width:100%;padding:10px;background:var(--teal);color:#000;border:none;border-radius:6px;font-weight:600;cursor:pointer">Ingresar</button>
+      <div id="loginError" class="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appScreen" style="display:none">
+  <div class="app-header">
+    <div class="brand">
+      <span style="font-size:18px">🧊</span>
+      <span class="brand-label">Beirute</span>
+    </div>
+    <div class="header-right">
+      <div class="user-chip">
+        <div>
+          <div class="user-chip-name" id="hdrNombre">—</div>
+          <div class="user-chip-rol" id="hdrRol">COLABORADOR</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión"><i class="ti ti-logout"></i></button>
+    </div>
+  </div>
+
+  <div style="padding:1.5rem">
+    <div id="statsContainer" class="stats"></div>
+    
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">📋 Registro de Horas</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th id="th-colab" style="display:none">Colaborador</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="registroBody">
+            <tr><td colspan="3" class="empty">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
