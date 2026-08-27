@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beirute — Control de Horas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --teal:          #2BBFB3;
+  --teal-dark:     #1a9990;
+  --danger:        #ef4444;
+  --warning:       #f97316;
+  --green:         #22c55e;
+  --purple:        #9333ea;
+  --bg:            #0f172a;
+  --bg-card:       #1e293b;
+  --bg-input:      #0f172a;
+  --border:        #334155;
+  --text-primary:  #f1f5f9;
+  --text-secondary:#cbd5e1;
+  --text-muted:    #64748b;
+
+  /* Criterio A y B */
+  --criterio-a:    #9333ea;
+  --criterio-b:    #f97316;
+}
+
+body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text-primary); line-height: 1.5; font-size: 14px; }
+
+/* ── LOGIN ── */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2.5rem 2rem;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+}
+.login-logo { text-align: center; margin-bottom: 2rem; }
+.login-logo h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 28px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--teal);
+}
+.login-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.login-error {
+  background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+  border-radius: 6px; padding: 8px 12px; font-size: 12px;
+  color: var(--danger); margin-bottom: 12px;
+}
+.login-error:empty { display: none; }
+.login-footer { text-align: center; margin-top: 12px; }
+.link-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; text-decoration: underline; font-family: 'Barlow', sans-serif; }
+
+/* ── HEADER ── */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem; height: 60px;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50; gap: 1rem;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-divider { width: 1px; height: 22px; background: var(--border); }
+.brand-label { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.user-chip { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+.user-chip-name { font-size: 13px; font-weight: 600; }
+.user-chip-rol { font-size: 10px; color: var(--teal); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.user-chip-criterio { font-size: 10px; color: var(--warning); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
+.logout-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all .15s; }
+.logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── MONTH NAV ── */
+.month-nav { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.month-nav button { background: none; border: none; color: var(--text-muted); width: 32px; height: 32px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.month-nav button:hover { background: var(--border); color: var(--text-primary); }
+.month-label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; min-width: 140px; text-align: center; padding: 0 6px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); height: 32px; line-height: 32px; }
+
+/* ── ICON BTN ── */
+.icon-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 15px; transition: all .15s; }
+.icon-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+/* ── TABS ── */
+.tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 0 1.5rem; }
+.tab-btn { background: none; border: none; padding: 12px 16px; color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; transition: all .15s; display: flex; align-items: center; gap: 6px; font-family: 'Barlow', sans-serif; }
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── MAIN ── */
+.main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+
+/* ── STATS ── */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.25rem; border-top: 2px solid var(--teal); }
+.stat-card.s-ext  { border-top-color: var(--warning); }
+.stat-card.s-dob  { border-top-color: var(--danger); }
+.stat-card.s-pend { border-top-color: var(--warning); }
+.stat-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+
+/* ── TABLE CARD ── */
+.table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-header { display: flex; align-items: center; justify-content: space-between; padding: .875rem 1.25rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+.table-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.table-actions { display: flex; gap: 6px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 9px 12px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(43,191,179,.03); }
+.sub-row td { background: rgba(43,191,179,.02); }
+.time-val { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 500; }
+.work-cell { max-width: 220px; line-height: 1.4; }
+.empty { text-align: center; color: var(--text-muted); padding: 40px; }
+
+/* ── BADGES DE ESTADO ── */
+.badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; font-family: 'Barlow Condensed', sans-serif; white-space: nowrap; }
+.badge-pend  { background: rgba(249,115,22,.15); color: #f97316; border: 1px solid rgba(249,115,22,.3); }
+.badge-apro  { background: rgba(34,197,94,.15);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.badge-rech  { background: rgba(239,68,68,.15);  color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+.badge-admin { background: rgba(43,191,179,.15); color: var(--teal);   border: 1px solid rgba(43,191,179,.3); }
+.badge-colab { background: rgba(147,51,234,.15); color: #a78bfa;       border: 1px solid rgba(147,51,234,.3); }
+
+/* ── MINI BADGES ── */
+.mini-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; display: inline-flex; align-items: center; }
+.mini-badge.ord { background: rgba(43,191,179,.15); color: var(--teal); }
+.mini-badge.ext { background: rgba(249,115,22,.15); color: var(--warning); }
+.mini-badge.dob { background: rgba(239,68,68,.15);  color: var(--danger); }
+
+/* ── BADGES DE PAGO ── */
+.badge-pagado { background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.badge-no-pagado { background: rgba(249,115,22,.15); color: #f97316; border: 1px solid rgba(249,115,22,.3); }
+.row-pagado { opacity: 0.7; }
+.row-no-pagado { opacity: 1; }
+
+/* ── CRITERIO BADGES ── */
+.criterio-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.criterio-badge.a { background: rgba(147,51,234,.15); color: var(--criterio-a); border: 1px solid rgba(147,51,234,.3); }
+.criterio-badge.b { background: rgba(249,115,22,.15); color: var(--criterio-b); border: 1px solid rgba(249,115,22,.3); }
+
+.horas-group { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* ── ICON BTN SM ── */
+.icon-btn-sm { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; width: 28px; height: 28px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px; transition: all .15s; }
+.icon-btn-sm:hover    { border-color: var(--teal);  color: var(--teal); }
+.icon-btn-sm.ok:hover { border-color: var(--green); color: var(--green); }
+.icon-btn-sm.danger   { border-color: var(--danger); color: var(--danger); }
+.icon-btn-sm.danger:hover { background: rgba(239,68,68,.1); }
+.btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* ── BTN ── */
+.btn {
+  background: var(--teal); color: var(--bg); border: none; border-radius: 6px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: 'Barlow', sans-serif; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:hover { background: var(--teal-dark); }
+.btn.secondary { background: var(--bg); color: var(--text-primary); border: 1px solid var(--border); }
+.btn.secondary:hover { border-color: var(--teal); color: var(--teal); }
+
+/* ── MODAL ── */
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.75); z-index: 100;
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto;
+}
+.modal-header {
+  padding: 1.5rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-header h2 {
+  font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+}
+.modal-header h2 i { color: var(--teal); }
+.modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; }
+.modal-close:hover { color: var(--text-primary); }
+.modal-body { padding: 1.5rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── FORM ── */
+.form-group { margin-bottom: 12px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+.form-control {
+  width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; color: var(--text-primary);
+  font-family: 'Barlow', sans-serif; font-size: 13px; transition: border-color .15s;
+}
+.form-control:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(43,191,179,.1); }
+select.form-control { cursor: pointer; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── WORK BLOCK ── */
+.work-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 10px; }
+.work-block-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.work-block-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); display: flex; align-items: center; gap: 5px; }
+.remove-work-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 2px; }
+.remove-work-btn:hover { color: var(--danger); }
+.add-work-btn { background: none; border: 1px dashed var(--border); border-radius: 6px; width: 100%; padding: 8px; color: var(--text-muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all .15s; font-family: 'Barlow', sans-serif; margin-bottom: 14px; }
+.add-work-btn:hover { border-color: var(--teal); color: var(--teal); }
+.hrs-preview { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: var(--text-muted); padding-top: 6px; }
+.cats-preview { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; margin-bottom: 8px; min-height: 18px; }
+
+/* ── INSTRUCCIONES ── */
+.instrucciones { background: rgba(43,191,179,.06); border: 1px solid rgba(43,191,179,.2); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+.instrucciones strong { color: var(--teal); }
+
+/* ── LEYENDA ── */
+.leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); margin-top: 1rem; }
+
+/* ── MES CERRADO ── */
+.mes-cerrado-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25);
+  border-radius: 8px; padding: .875rem 1.25rem; margin-bottom: 1.25rem;
+  font-size: 13px; color: var(--danger);
+}
+.mes-cerrado-banner i { font-size: 18px; flex-shrink: 0; }
+.mes-cerrado-banner strong { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.mes-cerrado-banner span  { color: var(--text-muted); font-size: 12px; }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 18px; font-size: 13px; color: var(--text-primary); display: none; z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,.5); animation: slideIn .3s; }
+@keyframes slideIn { from { transform: translateX(400px); } to { transform: translateX(0); } }
+
+
+/* ── BITÁCORA ── */
+.audit-action { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.audit-crear   { background: rgba(34,197,94,.15);   color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.audit-editar  { background: rgba(43,191,179,.15);  color: var(--teal); border: 1px solid rgba(43,191,179,.3); }
+.audit-aprobar { background: rgba(34,197,94,.15);   color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.audit-rechazar{ background: rgba(239,68,68,.15);   color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+.audit-eliminar{ background: rgba(239,68,68,.15);   color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+.audit-cerrar  { background: rgba(249,115,22,.15);  color: var(--warning); border: 1px solid rgba(249,115,22,.3); }
+.audit-usuario { background: rgba(147,51,234,.15);  color: #a78bfa; border: 1px solid rgba(147,51,234,.3); }
+.audit-rol     { background: rgba(147,51,234,.15);  color: #a78bfa; border: 1px solid rgba(147,51,234,.3); }
+.audit-criterio{ background: rgba(249,115,22,.15);  color: var(--warning); border: 1px solid rgba(249,115,22,.3); }
+.audit-detalle { font-size: 12px; color: var(--text-secondary); max-width: 300px; line-height: 1.4; }
+.audit-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+.audit-filters select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); font-family: 'Barlow', sans-serif; font-size: 12px; cursor: pointer; }
+.audit-filters select:focus { outline: none; border-color: var(--teal); }
+.audit-count { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* ── FOOTER ── */
+.app-footer { text-align: center; padding: 2rem; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 2rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .app-header { padding: 0 1rem; height: 50px; }
+  .header-right { gap: 4px; }
+  .user-chip { padding: 4px 8px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .main { padding: 1rem; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal { max-width: 95vw; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>BEIRUTE</h1>
+      <p>Refrigeración Industrial — Control de Horas</p>
+    </div>
+    <div id="loginError" class="login-error"></div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="loginEmail" class="form-control" placeholder="usuario@beirute.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input type="password" id="loginPass" class="form-control" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn" onclick="doLogin()" style="width: 100%; margin-top: 1rem; justify-content: center;">
+      <i class="ti ti-login"></i> Ingresar
+    </button>
+    <div class="login-footer">
+      <button class="link-btn" onclick="doReset()">¿Olvidaste tu contraseña?</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="appScreen" style="display:none">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="brand">
+      <span style="font-size: 20px;">📊</span>
+      <div class="brand-divider"></div>
+      <div class="brand-label">BEIRUTE</div>
+    </div>
+    <div class="header-right">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <div class="month-label" id="monthLabel">—</div>
+        <button onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <button class="icon-btn" onclick="exportXLSX()" title="Exportar mes actual a Excel">
+        <i class="ti ti-file-spreadsheet"></i>
+      </button>
+      <button class="icon-btn" onclick="openModalRango()" title="Exportar por rango de fechas">
+        <i class="ti ti-calendar-stats"></i>
+      </button>
+      <div class="user-chip">
+        <span class="user-chip-name" id="hdrNombre">—</span>
+        <span class="user-chip-rol"  id="hdrRol">—</span>
+        <span class="user-chip-criterio" id="hdrCriterio"></span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión">
+        <i class="ti ti-logout"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" id="mainTabs">
+    <button class="tab-btn" data-tab="tab-registro">
+      <i class="ti ti-clipboard-list"></i> Mi registro
+    </button>
+    <button class="tab-btn admin-only" data-tab="tab-usuarios" style="display:none">
+      <i class="ti ti-users"></i> Colaboradores
+    </button>
+    <button class="tab-btn admin-only" data-tab="tab-bitacora" style="display:none">
+      <i class="ti ti-shield-check"></i> Bitácora
+    </button>
+  </div>
+
+  <!-- TAB PANELS -->
+  <div class="main">
+
+    <!-- ═══ TAB: REGISTRO ═══ -->
+    <div id="tab-registro" class="tab-pane">
+
+      <!-- STATS -->
+      <div class="stats" id="statsContainer"></div>
+
+      <!-- TABLA -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <i class="ti ti-table"></i> Registro mensual
+          </div>
+          <div class="table-actions">
+            <button class="btn" id="btnNuevoRegistro" onclick="openModal()">
+              <i class="ti ti-plus"></i> Nuevo registro
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="registroTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th id="th-colaborador" style="display:none">Colaborador</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Horas</th>
+                <th>Cliente</th>
+                <th>Trabajo</th>
+                <th>Estado</th>
+                <th>Pago</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="registroBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="leyenda">
+        <span><span class="mini-badge ord">ord</span> Lun–Vie 7:45–17:30 / Sáb 7:45–12:00</span>
+        <span><span class="mini-badge ext">ext</span> Lun–Vie 6:00–7:45 y 17:30–22:00 / Sáb 12:00–22:00</span>
+        <span><span class="mini-badge dob">dob</span> Domingo (todo el día) / Cualquier día 22:00–6:00</span>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: USUARIOS (ADMIN) ═══ -->
+    <div id="tab-usuarios" class="tab-pane admin-only" style="display:none">
+      <div class="instrucciones">
+        <strong>¿Cómo crear un usuario?</strong><br>
+        1. Ve a <strong>Firebase Console → Authentication → Agregar usuario</strong> y crea la cuenta con correo y contraseña.<br>
+        2. Copia el <strong>UID</strong> que Firebase asigna al nuevo usuario.<br>
+        3. Usa el formulario de abajo para registrar su perfil en Firestore (nombre, rol, criterio, etc.).<br>
+        La próxima vez que ese usuario ingrese, el sistema reconocerá su rol automáticamente.
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <i class="ti ti-users"></i> Usuarios registrados
+          </div>
+          <div class="table-actions">
+            <button class="btn" onclick="openModalUsuario()">
+              <i class="ti ti-plus"></i> Agregar usuario
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Criterio</th><th></th></tr>
+            </thead>
+            <tbody id="tbodyUsuarios"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══ TAB: BITÁCORA (ADMIN) ═══ -->
+    <div id="tab-bitacora" class="tab-pane admin-only" style="display:none">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <i class="ti ti-shield-check"></i> Bitácora de auditoría
+          </div>
+          <div class="table-actions">
+            <button class="icon-btn" onclick="loadBitacora()" title="Recargar">
+              <i class="ti ti-refresh"></i>
+            </button>
+          </div>
+        </div>
+        <div style="padding:.875rem 1.25rem; border-bottom:1px solid var(--border)">
+          <div class="audit-filters">
+            <select id="filtroAccion" onchange="renderBitacora()">
+              <option value="">Todas las acciones</option>
+              <option value="crear">Crear registro</option>
+              <option value="editar">Editar registro</option>
+              <option value="aprobar">Aprobar</option>
+              <option value="rechazar">Rechazar</option>
+              <option value="eliminar">Eliminar registro</option>
+              <option value="cerrar_mes">Cerrar mes</option>
+              <option value="usuario_creado">Usuario creado</option>
+              <option value="usuario_eliminado">Usuario eliminado</option>
+              <option value="rol_cambiado">Cambio de rol</option>
+              <option value="criterio_cambiado">Cambio de criterio</option>
+            </select>
+            <select id="filtroMesAudit" onchange="renderBitacora()">
+              <option value="">Todos los meses</option>
+            </select>
+            <span class="audit-count" id="auditCount">—</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Acción</th>
+                <th>Realizado por</th>
+                <th>Afecta a</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyBitacora">
+              <tr><td colspan="5" class="empty"><i class="ti ti-shield-check"></i> Selecciona esta pestaña para cargar la bitácora</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.main -->
+
+  <footer class="app-footer">Refrigeración Industrial Beirute — Control de Horas</footer>
+</div><!-- /#appScreen -->
+
+
+<!-- ══ MODAL: REGISTRO ══ -->
+<div class="modal-bg" id="modalBg" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="ti ti-clock-edit"></i><span id="modalTitle">Nuevo registro</span></h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input type="date" id="fFecha" class="form-control" oninput="refreshAllBlocks()">
+      </div>
+      <div id="workBlocks"></div>
+      <button class="add-work-btn" onclick="addNextBlock()">
+        <i class="ti ti-plus"></i> Agregar otro turno
+      </button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="saveEntry()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: USUARIO (ADMIN) ══ -->
+<div class="modal-bg" id="modalUsuarioBg" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="ti ti-user-plus"></i> Agregar usuario</h2>
+      <button class="modal-close" onclick="closeModalUsuario()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">UID de Firebase Auth</label>
+        <input type="text" id="nuUid" class="form-control" placeholder="Ej: abc123xyz...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre completo</label>
+        <input type="text" id="nuNombre" class="form-control" placeholder="Nombre del colaborador">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Correo electrónico</label>
+        <input type="email" id="nuEmail" class="form-control" placeholder="correo@beirute.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rol</label>
+        <select id="nuRol" class="form-control">
+          <option value="colaborador">Colaborador</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Criterio de cálculo</label>
+        <select id="nuCriterio" class="form-control">
+          <option value="B">Criterio B (Lun–Vie 7:45–17:30)</option>
+          <option value="A">Criterio A (Lun–Vie 7:00–17:00)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeModalUsuario()">Cancelar</button>
+      <button class="btn" onclick="crearUsuarioPerfil()"><i class="ti ti-check"></i> Guardar perfil</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR CRITERIO ══ -->
+<div class="modal-bg" id="modalCriterioBg" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2><i class="ti ti-adjustments"></i> Editar criterio</h2>
+      <button class="modal-close" onclick="closeModalCriterio()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1.25rem">
+        Cambiar el criterio de cálculo para <strong id="ecNombre"></strong>
+      </p>
+      <div class="form-group">
+        <label class="form-label">Criterio</label>
+        <select id="ecCriterio" class="form-control">
+          <option value="B">Criterio B (Lun–Vie 7:45–17:30)</option>
+          <option value="A">Criterio A (Lun–Vie 7:00–17:00)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeModalCriterio()">Cancelar</button>
+      <button class="btn" onclick="guardarCriterio()"><i class="ti ti-check"></i> Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══ MODAL: EXPORTAR POR RANGO ══ -->
+<div class="modal-bg" id="modalRangoBg" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2><i class="ti ti-calendar-stats"></i> Exportar por rango de fechas</h2>
+      <button class="modal-close" onclick="closeModalRango()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1.25rem">
+        Seleccioná el rango de fechas que querés descargar a Excel. Puedes elegir cualquier período de hasta 365 días.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><i class="ti ti-calendar-event" style="color:var(--teal)"></i> Fecha desde</label>
+          <input type="date" id="rangoDesde" class="form-control" required>
+          <small style="color:var(--text-muted);font-size:11px;margin-top:4px">Primer día a incluir</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="ti ti-calendar-event" style="color:var(--teal)"></i> Fecha hasta</label>
+          <input type="date" id="rangoHasta" class="form-control" required>
+          <small style="color:var(--text-muted);font-size:11px;margin-top:4px">Último día a incluir</small>
+        </div>
+      </div>
+      <div style="margin-top:1.25rem;padding:10px;background:rgba(43,191,179,.08);border-left:3px solid var(--teal);border-radius:4px">
+        <div style="font-size:12px;color:var(--text-muted)">
+          <strong>📊 Información:</strong>
+        </div>
+        <ul style="font-size:11px;color:var(--text-muted);margin:6px 0 0 0;padding-left:1.25rem">
+          <li>Se exportarán todos tus registros en el rango</li>
+          <li>Se generará un Excel con 3 hojas: Detalle, Resumen y Pivot</li>
+          <li>Compatible con Firebase y GitHub</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeModalRango()">Cancelar</button>
+      <button class="btn" onclick="exportXLSXRango()"><i class="ti ti-file-spreadsheet"></i> Exportar a Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FIREBASE SDK MODULAR ══ -->
+<script type="module">
+import { initializeApp }                                              from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut,
+         sendPasswordResetEmail, onAuthStateChanged }                 from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, doc, query, where, orderBy,
+         onSnapshot, addDoc, updateDoc, deleteDoc, getDoc,
+         getDocs, setDoc }                                            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDsrra_dLaOz6WIKuzsX14XfvCerYIe8GA",
+  authDomain:        "horas-bodega-e481f.firebaseapp.com",
+  projectId:         "horas-bodega-e481f",
+  storageBucket:     "horas-bodega-e481f.firebasestorage.app",
+  messagingSenderId: "503086134246",
+  appId:             "1:503086134246:web:55fe935fd12d254d72dc27"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── CONSTANTES ──────────────────────────────────────────────
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+// ── ESTADO GLOBAL ────────────────────────────────────────────
+let currentUser    = null;
+let userProfile    = null;
+let curY           = new Date().getFullYear();
+let curM           = new Date().getMonth();
+let allRecords     = [];
+let editingId      = null;
+let workBlockCount = 0;
+let unsubRecords   = null;
+let editingUserId  = null;
+
+// ── TOAST ────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+window.showToast = showToast;
+
+// ── CÁLCULO DE HORAS ─────────────────────────────────────────
+function toMin(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Cálculo minuto-a-minuto según criterio del colaborador.
+// Criterio B (default): horario real Beirute (Lun–Vie 7:45–17:30, etc.)
+// Criterio A: horario real Beirute A (Lun–Vie 7:00–17:00, Sáb igual que B).
+function calcCategories(startStr, endStr, dateStr, criterio) {
+  if (!startStr || !endStr || !dateStr) return { ordinaria: 0, extra: 0, doble: 0 };
+  criterio = criterio || 'B';
+
+  // Criterio A: cálculo minuto-a-minuto según horario real
+  // Lun–Vie: 07:00–16:59 ord | 06:00–06:59 y 17:00–21:59 ext | 22:00–05:59 doble
+  // Sábado:  06:00–21:59 ext | 22:00–05:59 doble
+  // Domingo: doble todo el día
+  if (criterio === 'A') {
+    const dowA = new Date(dateStr + 'T12:00:00').getDay();
+    let sMinA = toMin(startStr);
+    let eMinA = toMin(endStr);
+    if (eMinA <= sMinA) eMinA += 1440;
+
+    let ordA = 0, extA = 0, dobA = 0;
+    for (let m = sMinA; m < eMinA; m++) {
+      const minOfDay   = m % 1440;
+      const hod        = minOfDay / 60;
+      const actualDowA = m >= 1440 ? (dowA + 1) % 7 : dowA;
+      let cat = 'doble';
+
+      if (actualDowA === 0) {
+        cat = 'doble';
+      } else if (actualDowA === 6) {
+        // Sábado: extra todo el día excepto 22:00–05:59 doble
+        if (hod >= 6 && hod < 22) cat = 'extra';
+        else                       cat = 'doble';
+      } else {
+        // Lunes a viernes
+        if      (hod >= 7    && hod < 17)                            cat = 'ordinaria';
+        else if ((hod >= 6   && hod < 7) || (hod >= 17 && hod < 22)) cat = 'extra';
+        else                                                          cat = 'doble';
+      }
+
+      if      (cat === 'ordinaria') ordA++;
+      else if (cat === 'extra')     extA++;
+      else                          dobA++;
+    }
+    return { ordinaria: ordA / 60, extra: extA / 60, doble: dobA / 60 };
+  }
+
+  // Criterio B: cálculo minuto-a-minuto según horario real
+  const dow = new Date(dateStr + 'T12:00:00').getDay(); // 0=dom, 6=sáb
+  let sMin = toMin(startStr);
+  let eMin = toMin(endStr);
+  if (eMin <= sMin) eMin += 1440;
+
+  let ord = 0, ext = 0, dob = 0;
+  for (let m = sMin; m < eMin; m++) {
+    const minOfDay  = m % 1440;
+    const hod       = minOfDay / 60;
+    const actualDow = m >= 1440 ? (dow + 1) % 7 : dow;
+    let cat = 'doble';
+
+    if (actualDow === 0) {
+      cat = 'doble';
+    } else if (actualDow === 6) {
+      // Sábado criterio B:
+      // 00:00–05:59 doble | 06:00–07:44 extra | 07:45–11:59 ordinaria
+      // 12:00–21:59 extra | 22:00–23:59 doble
+      if      (hod >= 7.75 && hod < 12)  cat = 'ordinaria';
+      else if ((hod >= 6 && hod < 7.75) || (hod >= 12 && hod < 22)) cat = 'extra';
+      else                               cat = 'doble';
+    } else {
+      if      (hod >= 7.75 && hod < 17.5)                              cat = 'ordinaria';
+      else if ((hod >= 6 && hod < 7.75) || (hod >= 17.5 && hod < 22)) cat = 'extra';
+      else                                                              cat = 'doble';
+    }
+
+    if      (cat === 'ordinaria') ord++;
+    else if (cat === 'extra')     ext++;
+    else                          dob++;
+  }
+  return { ordinaria: ord / 60, extra: ext / 60, doble: dob / 60 };
+}
+
+function totalCats(record) {
+  const criterio = record.criterio || userProfile?.criterio || 'B';
+  let ord = 0, ext = 0, dob = 0;
+  (record.turnos || []).forEach(t => {
+    const c = calcCategories(t.entrada, t.salida, record.fecha, criterio);
+    ord += c.ordinaria; ext += c.extra; dob += c.doble;
+  });
+  return { ordinaria: ord, extra: ext, doble: dob };
+}
+
+function fmtH(h) { return h > 0.005 ? h.toFixed(2) + 'h' : '—'; }
+
+function catsBadges(cats) {
+  return [
+    cats.ordinaria > 0.005 ? `<span class="mini-badge ord">${cats.ordinaria.toFixed(2)}h ord</span>` : '',
+    cats.extra     > 0.005 ? `<span class="mini-badge ext">${cats.extra.toFixed(2)}h ext</span>`     : '',
+    cats.doble     > 0.005 ? `<span class="mini-badge dob">${cats.doble.toFixed(2)}h dob</span>`     : '',
+  ].join('');
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+window.doLogin = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  err.textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    err.textContent = '⚠ Email o contraseña incorrectos';
+  }
+};
+
+window.doLogout = async function() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  if (unsubRecords) unsubRecords();
+  await signOut(auth);
+};
+
+window.doReset = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { document.getElementById('loginError').textContent = 'Ingresa tu correo primero.'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast('✓ Correo de recuperación enviado');
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'No se pudo enviar el correo.';
+  }
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    const snap  = await getDoc(doc(db, 'users', user.uid));
+    userProfile = snap.exists()
+      ? snap.data()
+      : { nombre: user.email, rol: 'colaborador', email: user.email, criterio: 'B' };
+    showApp();
+  } else {
+    currentUser = null; userProfile = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display   = 'none';
+  }
+});
+
+// ── CONTROL DE PAGO ───────────────────────────────────────────
+function isMesCerrado() {
+  // El cierre de mes ha sido eliminado - siempre retorna false
+  return false;
+}
+
+function updateCierreUI() {
+  // Función placeholder ahora que se eliminó el cierre de mes
+}
+
+window.togglePago = async function(recordId) {
+  const record = allRecords.find(r => r.id === recordId);
+  if (!record) return;
+  try {
+    await updateDoc(doc(db, 'registros', recordId), {
+      pagado: !record.pagado
+    });
+    const accion = !record.pagado ? 'pagado' : 'no-pagado';
+    await logAudit('cambiar-estado-pago', {
+      afecta: `${record.fecha}`,
+      estado: accion
+    });
+    showToast(`✓ Registro marcado como ${!record.pagado ? 'pagado' : 'no pagado'}`);
+  } catch(e) {
+    showToast('⚠ Error al actualizar estado de pago: ' + e.message);
+  }
+};
+
+// ── MOSTRAR APP ───────────────────────────────────────────────
+async function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display   = 'block';
+
+  document.getElementById('hdrNombre').textContent   = userProfile?.nombre || currentUser.email;
+  document.getElementById('hdrRol').textContent      = (userProfile?.rol === 'admin' ? 'ADMIN' : 'COLABORADOR');
+  const crit = userProfile?.criterio || 'B';
+  document.getElementById('hdrCriterio').textContent = 'Criterio ' + crit;
+
+  const isAdmin = userProfile?.rol === 'admin';
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  const thColab = document.getElementById('th-colaborador');
+  if (thColab) thColab.style.display = isAdmin ? '' : 'none';
+
+  initTabs();
+  subscribeRecords();
+  if (isAdmin) loadUsuariosAdmin();
+  document.getElementById('monthLabel').textContent = `${MESES[curM]} ${curY}`;
+  updateCierreUI();
+}
+
+// ── FIRESTORE: REGISTROS ──────────────────────────────────────
+function subscribeRecords() {
+  if (unsubRecords) unsubRecords();
+  const isAdmin = userProfile?.rol === 'admin';
+
+  // Rango de fechas del mes actual en formato YYYY-MM-DD
+  const mesInicio = `${curY}-${String(curM + 1).padStart(2, '0')}-01`;
+  const mesFin    = `${curY}-${String(curM + 1).padStart(2, '0')}-31`;
+
+  const q = isAdmin
+    ? query(collection(db, 'registros'),
+        where('fecha', '>=', mesInicio),
+        where('fecha', '<=', mesFin),
+        orderBy('fecha', 'desc'))
+    : query(collection(db, 'registros'),
+        where('uid', '==', currentUser.uid),
+        where('fecha', '>=', mesInicio),
+        where('fecha', '<=', mesFin),
+        orderBy('fecha', 'desc'));
+
+  unsubRecords = onSnapshot(q, snap => {
+    allRecords = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTabla();
+    renderStats();
+  }, err => {
+    showToast('⚠ Error al cargar registros: ' + err.code);
+    console.error(err);
+  });
+}
+
+async function saveRecord(data) {
+  const criterio = userProfile?.criterio || 'B';
+  if (editingId) {
+    await updateDoc(doc(db, 'registros', editingId), { ...data, criterio, actualizadoEn: new Date().toISOString() });
+    await logAudit('editar', {
+      afecta:  userProfile?.nombre || currentUser.email,
+      fecha:   data.fecha,
+      turno0:  data.turnos?.[0] ? `${data.turnos[0].entrada}–${data.turnos[0].salida}` : '',
+      cliente: data.turnos?.[0]?.cliente || '',
+      trabajo: data.turnos?.[0]?.trabajo || '',
+    });
+    showToast('✓ Registro actualizado');
+  } else {
+    const nuevoDoc = await addDoc(collection(db, 'registros'), {
+      ...data,
+      uid:               currentUser.uid,
+      nombreColaborador: userProfile?.nombre || currentUser.email,
+      criterio,
+      estado:            'pendiente',
+      creadoEn:          new Date().toISOString(),
+    });
+    await logAudit('crear', {
+      afecta:  userProfile?.nombre || currentUser.email,
+      fecha:   data.fecha,
+      turno0:  data.turnos?.[0] ? `${data.turnos[0].entrada}–${data.turnos[0].salida}` : '',
+      cliente: data.turnos?.[0]?.cliente || '',
+      trabajo: data.turnos?.[0]?.trabajo || '',
+    });
+    showToast('✓ Registro guardado');
+  }
+}
+
+window.deleteRecord = async function(id) {
+  if (isMesCerrado()) { showToast('⚠ Este mes está cerrado y no puede modificarse'); return; }
+  if (!confirm('¿Eliminar este registro?')) return;
+  const rDel = allRecords.find(x => x.id === id);
+  await deleteDoc(doc(db, 'registros', id));
+  await logAudit('eliminar', {
+    afecta: rDel?.nombreColaborador || '—',
+    fecha:  rDel?.fecha || '—',
+  });
+  showToast('✓ Registro eliminado');
+};
+
+window.aprobarRegistro = async function(id) {
+  if (isMesCerrado()) { showToast('⚠ Este mes está cerrado y no puede modificarse'); return; }
+  const rApr = allRecords.find(x => x.id === id);
+  await updateDoc(doc(db, 'registros', id), {
+    estado: 'aprobado', revisadoEn: new Date().toISOString(),
+    revisadoPor: userProfile?.nombre || currentUser.email,
+    motivoRechazo: ''
+  });
+  await logAudit('aprobar', {
+    afecta: rApr?.nombreColaborador || '—',
+    fecha:  rApr?.fecha || '—',
+  });
+  showToast('✓ Registro aprobado');
+};
+
+window.rechazarRegistro = async function(id) {
+  if (isMesCerrado()) { showToast('⚠ Este mes está cerrado y no puede modificarse'); return; }
+  const motivo = prompt('Motivo del rechazo (opcional):') || '';
+  const rRech = allRecords.find(x => x.id === id);
+  await updateDoc(doc(db, 'registros', id), {
+    estado: 'rechazado', motivoRechazo: motivo,
+    revisadoEn: new Date().toISOString(),
+    revisadoPor: userProfile?.nombre || currentUser.email,
+  });
+  await logAudit('rechazar', {
+    afecta: rRech?.nombreColaborador || '—',
+    fecha:  rRech?.fecha || '—',
+    motivo: motivo || '—',
+  });
+  showToast('✗ Registro rechazado');
+};
+
+// ── RENDER ────────────────────────────────────────────────────
+function getFiltered() {
+  const isAdmin = userProfile?.rol === 'admin';
+  return allRecords.filter(r => {
+    if (!r.fecha || !r.uid) return false;
+    if (!isAdmin && r.uid !== currentUser?.uid) return false;
+    const d = new Date(r.fecha + 'T12:00:00');
+    return d.getFullYear() === curY && d.getMonth() === curM;
+  }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+function renderStats() {
+  const rows = getFiltered();
+  let ord = 0, ext = 0, dob = 0;
+  rows.forEach(r => { const c = totalCats(r); ord += c.ordinaria; ext += c.extra; dob += c.doble; });
+  const pend = rows.filter(r => r.estado === 'pendiente').length;
+  document.getElementById('statsContainer').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${(ord+ext+dob).toFixed(1)}h</div></div>
+    <div class="stat-card"><div class="stat-label">Ordinarias</div><div class="stat-value">${ord.toFixed(1)}h</div></div>
+    <div class="stat-card s-ext"><div class="stat-label">Extra</div><div class="stat-value">${ext.toFixed(1)}h</div></div>
+    <div class="stat-card s-dob"><div class="stat-label">Doble</div><div class="stat-value">${dob.toFixed(1)}h</div></div>
+    <div class="stat-card s-pend"><div class="stat-label">Pendientes</div><div class="stat-value">${pend}</div></div>
+  `;
+}
+
+function renderTabla() {
+  const rows    = getFiltered();
+  const tbody   = document.getElementById('registroBody');
+  const isAdmin = userProfile?.rol === 'admin';
+  document.getElementById('monthLabel').textContent = `${MESES[curM]} ${curY}`;
+  if (!tbody) return;
+
+  const thColab = document.getElementById('th-colaborador');
+  if (thColab) thColab.style.display = isAdmin ? '' : 'none';
+
+  if (!rows.length) {
+    const cols = isAdmin ? 9 : 8;
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="empty"><i class="ti ti-calendar-off"></i> Sin registros en ${MESES[curM]} ${curY}</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  rows.forEach(r => {
+    const cats   = totalCats(r);
+    const tot    = cats.ordinaria + cats.extra + cats.doble;
+    const turnos = r.turnos || [];
+    const t0     = turnos[0] || {};
+    const d      = new Date(r.fecha + 'T12:00:00');
+    const diaStr = DIAS[d.getDay()];
+    const fechaStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+    const mesCerrado = isMesCerrado();
+    const estadoMap = {
+      pendiente: ['badge-pend', 'ti-clock',        'Pendiente'],
+      aprobado:  mesCerrado
+                   ? ['badge-apro', 'ti-lock', 'Cerrado']
+                   : ['badge-apro', 'ti-circle-check', 'Aprobado'],
+      rechazado: ['badge-rech', 'ti-x-circle',     'Rechazado'],
+    };
+    const [eCls, eIco, eTxt] = estadoMap[r.estado] || estadoMap.pendiente;
+    const tipRechazo = (r.estado === 'rechazado' && r.motivoRechazo)
+      ? ` title="Motivo: ${r.motivoRechazo}"` : '';
+
+    const canEdit = !mesCerrado && (isAdmin || (r.uid === currentUser?.uid && (r.estado === 'pendiente' || r.estado === 'rechazado')));
+    const editTitle = r.estado === 'rechazado' ? 'Corregir' : 'Editar';
+
+    const criterioR = r.criterio || 'B';
+    const critBadge = `<span class="criterio-badge ${criterioR.toLowerCase()}" style="font-size:10px;padding:2px 6px">Crit. ${criterioR}</span>`;
+
+    const acciones = mesCerrado
+      ? `<span style="font-size:11px;color:var(--text-muted)"><i class="ti ti-lock" style="margin-right:3px"></i>Cerrado</span>`
+      : `
+        ${canEdit ? `<button class="icon-btn-sm" title="${editTitle}" onclick="openModalEdit('${r.id}')"><i class="ti ti-pencil"></i></button>` : ''}
+        ${isAdmin && r.estado === 'pendiente' ? `<button class="icon-btn-sm ok"    title="Aprobar"  onclick="aprobarRegistro('${r.id}')"><i class="ti ti-check"></i></button>` : ''}
+        ${isAdmin && r.estado === 'pendiente' ? `<button class="icon-btn-sm danger" title="Rechazar" onclick="rechazarRegistro('${r.id}')"><i class="ti ti-x"></i></button>` : ''}
+        ${isAdmin ? `<button class="icon-btn-sm danger" title="Eliminar" onclick="deleteRecord('${r.id}')"><i class="ti ti-trash"></i></button>` : ''}
+      `;
+
+    const rs = turnos.length > 1 ? ` rowspan="${turnos.length}"` : '';
+    html += `<tr>
+      <td${rs} style="white-space:nowrap">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600">${fechaStr}</div>
+        <div style="font-size:10px;color:var(--teal);text-transform:uppercase;font-weight:700;letter-spacing:.05em">${diaStr}</div>
+      </td>
+      ${isAdmin ? `<td${rs} style="font-size:12px;color:var(--text-muted)">${r.nombreColaborador||'—'}<br>${critBadge}</td>` : ''}
+      <td><div class="time-val">${t0.entrada||'—'}</div></td>
+      <td><div class="time-val">${t0.salida||'—'}</div></td>
+      <td${rs}>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700">${fmtH(tot)}</div>
+        <div class="horas-group">${catsBadges(cats)}</div>
+      </td>
+      <td>${t0.cliente||'—'}</td>
+      <td class="work-cell">${t0.trabajo||'—'}</td>
+      <td${rs}><span class="badge ${eCls}"${tipRechazo}><i class="ti ${eIco}"></i> ${eTxt}</span></td>
+      <td${rs}>
+        <span class="badge ${r.pagado ? 'badge-pagado' : 'badge-no-pagado'}">
+          <i class="ti ${r.pagado ? 'ti-check' : 'ti-clock'}"></i> 
+          ${r.pagado ? 'Pagado' : 'Pendiente'}
+        </span>
+        ${isAdmin ? `<button class="icon-btn-sm" style="margin-left:6px" title="Toggle pago" onclick="togglePago('${r.id}')"><i class="ti ti-edit"></i></button>` : ''}
+      </td>
+      <td${rs}><div class="btn-group">${acciones}</div></td>
+    </tr>`;
+
+    for (let i = 1; i < turnos.length; i++) {
+      const t = turnos[i];
+      html += `<tr class="sub-row">
+        ${isAdmin ? '<td></td>' : ''}
+        <td><div class="time-val" style="color:var(--text-muted)">${t.entrada||'—'}</div></td>
+        <td><div class="time-val" style="color:var(--text-muted)">${t.salida||'—'}</div></td>
+        <td style="color:var(--text-muted)"><i class="ti ti-corner-down-right" style="color:var(--teal);margin-right:4px"></i>${t.cliente||'—'}</td>
+        <td class="work-cell" style="color:var(--text-muted)">${t.trabajo||'—'}</td>
+      </tr>`;
+    }
+  });
+  tbody.innerHTML = html;
+}
+
+// ── MODAL REGISTRO ────────────────────────────────────────────
+window.openModal = function() {
+  if (isMesCerrado()) { showToast('⚠ Este mes está cerrado y no puede modificarse'); return; }
+  editingId = null; workBlockCount = 0;
+  document.getElementById('workBlocks').innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Nuevo registro';
+  const today  = new Date();
+  const maxDay = new Date(curY, curM + 1, 0).getDate();
+  const day    = Math.min(today.getDate(), maxDay);
+  document.getElementById('fFecha').value =
+    `${curY}-${String(curM+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  addWorkBlock({}, '07:45');
+  document.getElementById('modalBg').style.display = 'flex';
+};
+
+window.openModalEdit = function(id) {
+  if (isMesCerrado()) { showToast('⚠ Este mes está cerrado y no puede modificarse'); return; }
+  const r = allRecords.find(x => x.id === id);
+  if (!r) return;
+  editingId = id; workBlockCount = 0;
+  document.getElementById('workBlocks').innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Editar registro';
+  document.getElementById('fFecha').value = r.fecha;
+  (r.turnos||[]).forEach(t => addWorkBlock(t, ''));
+  if (!(r.turnos?.length)) addWorkBlock({}, '07:45');
+  document.getElementById('modalBg').style.display = 'flex';
+};
+
+window.closeModal = function() {
+  document.getElementById('modalBg').style.display = 'none';
+  editingId = null;
+};
+
+window.saveEntry = async function() {
+  const fecha = document.getElementById('fFecha').value;
+  if (!fecha) { showToast('⚠ Selecciona una fecha'); return; }
+  const turnos = getWorkBlocks();
+  if (!turnos.length) { showToast('⚠ Agrega al menos un turno con hora de inicio y fin'); return; }
+  try {
+    await saveRecord({ fecha, turnos });
+    closeModal();
+    const d = new Date(fecha + 'T12:00:00');
+    const newY = d.getFullYear(), newM = d.getMonth();
+    if (newY !== curY || newM !== curM) {
+      curY = newY; curM = newM;
+      updateCierreUI();
+      subscribeRecords();
+    }
+  } catch(e) {
+    showToast('⚠ Error al guardar: ' + e.message);
+  }
+};
+
+function addWorkBlock(data, autoStart) {
+  workBlockCount++;
+  const num = workBlockCount;
+  const c = data || {};
+  const defEntrada = c.entrada || autoStart || '';
+  const defSalida  = c.salida  || '';
+  const div = document.createElement('div');
+  div.className = 'work-block'; div.id = `wb_${num}`;
+  div.innerHTML = `
+    <div class="work-block-header">
+      <span class="work-block-label"><i class="ti ti-clock"></i> Turno #${num}</span>
+      ${num > 1 ? `<button class="remove-work-btn" onclick="removeWorkBlock(${num})"><i class="ti ti-x"></i></button>` : ''}
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-clock-play" style="color:var(--teal)"></i> Hora inicio</label>
+        <input type="time" id="wb_entrada_${num}" class="form-control" value="${defEntrada}" oninput="updateBlockHours(${num})">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-clock-stop" style="color:var(--danger)"></i> Hora fin</label>
+        <input type="time" id="wb_salida_${num}" class="form-control" value="${defSalida}" oninput="updateBlockHours(${num}); autoFillNext(${num})">
+      </div>
+      <div class="form-group" style="display:flex;flex-direction:column;justify-content:flex-end">
+        <label class="form-label">Total</label>
+        <div class="hrs-preview" id="wb_hrs_${num}">—</div>
+      </div>
+    </div>
+    <div class="cats-preview" id="wb_cats_${num}"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <input type="text" id="wb_cliente_${num}" class="form-control" placeholder="Nombre del cliente" value="${c.cliente||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trabajo realizado</label>
+        <input type="text" id="wb_trabajo_${num}" class="form-control" placeholder="Descripción del trabajo" value="${c.trabajo||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fase</label>
+        <input type="text" id="wb_fase_${num}" class="form-control" placeholder="Diseño / Ejecución / Cierre" value="${c.fase||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Centro de costos</label>
+        <input type="text" id="wb_centro_${num}" class="form-control" placeholder="Centro de costos" value="${c.centro||''}">
+      </div>
+    </div>
+  `;
+  document.getElementById('workBlocks').appendChild(div);
+  if (defEntrada && defSalida) updateBlockHours(num);
+}
+
+window.updateBlockHours = function(num) {
+  const e     = document.getElementById(`wb_entrada_${num}`)?.value;
+  const s     = document.getElementById(`wb_salida_${num}`)?.value;
+  const fecha = document.getElementById('fFecha')?.value;
+  const hEl   = document.getElementById(`wb_hrs_${num}`);
+  const cEl   = document.getElementById(`wb_cats_${num}`);
+  if (!hEl) return;
+  if (!e || !s || !fecha) { hEl.textContent = '—'; hEl.style.color = 'var(--text-muted)'; if(cEl) cEl.innerHTML = ''; return; }
+  const criterio = userProfile?.criterio || 'B';
+  const cats = calcCategories(e, s, fecha, criterio);
+  const tot  = cats.ordinaria + cats.extra + cats.doble;
+  hEl.textContent = tot > 0 ? tot.toFixed(2) + 'h' : '—';
+  hEl.style.color = tot > 0 ? 'var(--teal)' : 'var(--text-muted)';
+  if (cEl) cEl.innerHTML = catsBadges(cats);
+};
+
+window.refreshAllBlocks = function() {
+  for (let i = 1; i <= workBlockCount; i++) {
+    if (document.getElementById(`wb_${i}`)) updateBlockHours(i);
+  }
+};
+
+window.autoFillNext = function(num) {
+  const s = document.getElementById(`wb_salida_${num}`)?.value;
+  if (!s) return;
+  const next = document.getElementById(`wb_entrada_${num+1}`);
+  if (next && !next.value) { next.value = s; updateBlockHours(num+1); }
+};
+
+window.removeWorkBlock = function(num) {
+  const el = document.getElementById(`wb_${num}`); if(el) el.remove();
+};
+
+window.addNextBlock = function() {
+  const lastSalida = document.getElementById(`wb_salida_${workBlockCount}`)?.value || '';
+  addWorkBlock({}, lastSalida);
+};
+
+function getWorkBlocks() {
+  return Array.from(document.getElementById('workBlocks').querySelectorAll('.work-block'))
+    .map(b => {
+      const id = b.id.replace('wb_', '');
+      const entrada = document.getElementById(`wb_entrada_${id}`)?.value || '';
+      const salida  = document.getElementById(`wb_salida_${id}`)?.value  || '';
+      if (!entrada || !salida) return null;
+      return {
+        entrada, salida,
+        cliente: document.getElementById(`wb_cliente_${id}`)?.value || '',
+        trabajo: document.getElementById(`wb_trabajo_${id}`)?.value || '',
+        fase:    document.getElementById(`wb_fase_${id}`)?.value    || '',
+        centro:  document.getElementById(`wb_centro_${id}`)?.value  || '',
+      };
+    }).filter(Boolean);
+}
+
+// ── USUARIOS (ADMIN) ──────────────────────────────────────────
+async function loadUsuariosAdmin() {
+  const snap = await getDocs(collection(db, 'users'));
+  renderUsuarios(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+}
+
+function renderUsuarios(list) {
+  const tbody = document.getElementById('tbodyUsuarios');
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin usuarios registrados</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(u => `
+    <tr>
+      <td>${u.nombre||'—'}</td>
+      <td style="color:var(--text-muted)">${u.email||'—'}</td>
+      <td><span class="badge ${u.rol==='admin'?'badge-admin':'badge-colab'}">${u.rol==='admin'?'Admin':'Colaborador'}</span></td>
+      <td><span class="criterio-badge ${(u.criterio||'B').toLowerCase()}">Criterio ${u.criterio||'B'}</span></td>
+      <td>
+        <div class="btn-group">
+          <button class="icon-btn-sm" title="Editar criterio" onclick="openModalEditarCriterio('${u.id}','${u.nombre}','${u.criterio||'B'}')"><i class="ti ti-adjustments"></i></button>
+          <button class="icon-btn-sm" title="Cambiar rol" onclick="toggleRol('${u.id}','${u.rol}')"><i class="ti ti-switch-horizontal"></i></button>
+          <button class="icon-btn-sm danger" title="Eliminar" onclick="eliminarUsuarioDoc('${u.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+window.openModalUsuario = function() {
+  ['nuUid','nuNombre','nuEmail'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nuRol').value      = 'colaborador';
+  document.getElementById('nuCriterio').value = 'B';
+  document.getElementById('modalUsuarioBg').style.display = 'flex';
+};
+window.closeModalUsuario = function() {
+  document.getElementById('modalUsuarioBg').style.display = 'none';
+};
+
+window.crearUsuarioPerfil = async function() {
+  const uid     = document.getElementById('nuUid').value.trim();
+  const nombre  = document.getElementById('nuNombre').value.trim();
+  const email   = document.getElementById('nuEmail').value.trim();
+  const rol     = document.getElementById('nuRol').value;
+  const criterio = document.getElementById('nuCriterio').value;
+  if (!uid || !nombre || !email) { showToast('⚠ Completa todos los campos'); return; }
+  await setDoc(doc(db, 'users', uid), { nombre, email, rol, criterio });
+  await logAudit('usuario_creado', {
+    afecta: nombre,
+    email,
+    rol,
+  });
+  showToast('✓ Perfil creado en Firestore');
+  closeModalUsuario();
+  loadUsuariosAdmin();
+};
+
+window.toggleRol = async function(uid, rol) {
+  const newRol = rol === 'admin' ? 'colaborador' : 'admin';
+  if (!confirm(`¿Cambiar a ${newRol === 'admin' ? 'Administrador' : 'Colaborador'}?`)) return;
+  // Obtener nombre del usuario afectado
+  const snapRol = await getDoc(doc(db, 'users', uid));
+  const usrRol  = snapRol.exists() ? snapRol.data() : {};
+  await updateDoc(doc(db, 'users', uid), { rol: newRol });
+  await logAudit('rol_cambiado', {
+    afecta: usrRol.nombre || uid,
+    de:     rol    === 'admin' ? 'Admin' : 'Colaborador',
+    a:      newRol === 'admin' ? 'Admin' : 'Colaborador',
+  });
+  showToast('✓ Rol actualizado'); loadUsuariosAdmin();
+};
+
+window.eliminarUsuarioDoc = async function(uid) {
+  if (!confirm('¿Eliminar este perfil? (solo Firestore, no la cuenta de Auth)')) return;
+  // Obtener nombre antes de borrar
+  const snapUsr = await getDoc(doc(db, 'users', uid));
+  const usrData = snapUsr.exists() ? snapUsr.data() : {};
+  await deleteDoc(doc(db, 'users', uid));
+  await logAudit('usuario_eliminado', {
+    afecta: usrData.nombre || uid,
+    email:  usrData.email  || '—',
+    rol:    usrData.rol    || '—',
+  });
+  showToast('✓ Perfil eliminado'); loadUsuariosAdmin();
+};
+
+// ── MODAL: EDITAR CRITERIO ────────────────────────────────────
+window.openModalEditarCriterio = function(uid, nombre, criterio) {
+  editingUserId = uid;
+  document.getElementById('ecNombre').textContent  = nombre;
+  document.getElementById('ecCriterio').value      = criterio || 'B';
+  document.getElementById('modalCriterioBg').style.display = 'flex';
+};
+window.closeModalCriterio = function() {
+  document.getElementById('modalCriterioBg').style.display = 'none';
+  editingUserId = null;
+};
+window.guardarCriterio = async function() {
+  if (!editingUserId) return;
+  const nuevoCriterio = document.getElementById('ecCriterio').value;
+  // Obtener criterio anterior
+  const snapCrit = await getDoc(doc(db, 'users', editingUserId));
+  const critAnterior = snapCrit.exists() ? (snapCrit.data().criterio || 'B') : 'B';
+  const critNombre   = snapCrit.exists() ? (snapCrit.data().nombre   || editingUserId) : editingUserId;
+  await updateDoc(doc(db, 'users', editingUserId), { criterio: nuevoCriterio });
+  await logAudit('criterio_cambiado', {
+    afecta: critNombre,
+    de:     critAnterior,
+    a:      nuevoCriterio,
+  });
+  // Si es el usuario actual, refrescar header
+  if (userProfile && currentUser?.uid === editingUserId) {
+    userProfile.criterio = nuevoCriterio;
+    document.getElementById('hdrCriterio').textContent = 'Criterio ' + nuevoCriterio;
+  }
+  showToast('✓ Criterio actualizado');
+  closeModalCriterio();
+  loadUsuariosAdmin();
+};
+
+// ── NAVEGACIÓN MES ────────────────────────────────────────────
+window.changeMonth = function(delta) {
+  curM += delta;
+  if (curM < 0)  { curM = 11; curY--; }
+  if (curM > 11) { curM = 0;  curY++; }
+  updateCierreUI();
+  subscribeRecords(); // recarga registros del nuevo mes desde Firestore
+};
+
+// ── EXPORTAR XLSX ─────────────────────────────────────────────
+// Convierte "HH:MM" (24h) a "HH:MM AM/PM"
+function to12h(t) {
+  if (!t) return '';
+  const [hh, mm] = t.split(':').map(Number);
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  const h12  = hh % 12 || 12;
+  return `${String(h12).padStart(2,'0')}:${String(mm).padStart(2,'0')} ${ampm}`;
+}
+
+window.exportXLSX = function() {
+  const rows    = getFiltered();
+  const isAdmin = userProfile?.rol === 'admin';
+  if (!rows.length) { showToast('⚠ Sin datos para exportar'); return; }
+
+  const loadXLSX = new Promise(res => {
+    if (window.XLSX) { res(window.XLSX); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = () => res(null);
+    document.head.appendChild(s);
+  });
+
+  loadXLSX.then(XLSX => {
+    if (!XLSX) { showToast('No se pudo cargar librería XLSX'); return; }
+
+    // ── Colores ──────────────────────────────────────────────
+    const COLOR_HEADER    = { fgColor: { rgb: '1565C1' } };
+    const COLOR_SUBTOTAL  = { fgColor: { rgb: '1976D2' } };
+    const COLOR_TOTAL     = { fgColor: { rgb: '0D47A1' } };
+    const COLOR_RESUMEN_H = { fgColor: { rgb: '1565C1' } };
+    const FONT_WHITE      = { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 11 };
+    const FONT_NORMAL     = { name: 'Arial', sz: 10 };
+    const FONT_BOLD       = { bold: true, name: 'Arial', sz: 10 };
+    const FMT_NUM         = '0.00';
+    const BORDER_THIN     = { style: 'thin', color: { rgb: '334155' } };
+    const FULL_BORDER     = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+    const ALIGN_CENTER    = { horizontal: 'center', vertical: 'center' };
+    const ALIGN_RIGHT     = { horizontal: 'right',  vertical: 'center' };
+
+    // ── Construir filas por colaborador ──────────────────────
+    // Agrupar registros por colaborador
+    const byColab = {};
+    rows.forEach(r => {
+      const key = isAdmin ? (r.nombreColaborador || 'Sin nombre') : (userProfile?.nombre || 'Yo');
+      if (!byColab[key]) byColab[key] = [];
+      byColab[key].push(r);
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    // ════════════════════════════════════════════════════════
+    // HOJA 1 — Detalle con subtotales por colaborador
+    // ════════════════════════════════════════════════════════
+    const ws1 = { '!ref': 'A1', '!cols': [], '!rows': [] };
+    const headers1 = isAdmin
+      ? ['Fecha','Día','Empleado','Criterio','Hora Entrada','Hora Salida','Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas','Cliente','Trabajo','Fase','Centro de Costos','Estado']
+      : ['Fecha','Día','Hora Entrada','Hora Salida','Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas','Cliente','Trabajo','Fase','Centro de Costos','Estado'];
+
+    const numColIdx1 = headers1.reduce((acc, h, i) => {
+      if (['Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas'].includes(h)) acc.push(i);
+      return acc;
+    }, []);
+
+    let rowIdx = 0; // 0-based
+
+    // Cabecera
+    headers1.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+      ws1[addr] = { v: h, t: 's', s: { fill: COLOR_HEADER, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER } };
+    });
+    ws1['!rows'][rowIdx] = { hpt: 20 };
+    rowIdx++;
+
+    const colabs = Object.keys(byColab);
+    const grandTotals = { ord: 0, ext: 0, dob: 0, tot: 0 };
+
+    colabs.forEach(colab => {
+      const recs = byColab[colab];
+      const subtotals = { ord: 0, ext: 0, dob: 0, tot: 0 };
+      const startRow = rowIdx;
+
+      recs.forEach(r => {
+        const d    = new Date(r.fecha + 'T12:00:00');
+        const fStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        const dia  = DIAS[d.getDay()];
+
+        (r.turnos || []).forEach((t, i) => {
+          const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+          if (i === 0) {
+            subtotals.ord += cats.ordinaria;
+            subtotals.ext += cats.extra;
+            subtotals.dob += cats.doble;
+            subtotals.tot += cats.ordinaria + cats.extra + cats.doble;
+          }
+
+          const vals = isAdmin
+            ? [fStr, dia, colab, r.criterio||'B', to12h(t.entrada), to12h(t.salida),
+               i===0 ? parseFloat(cats.ordinaria.toFixed(2)) : null,
+               i===0 ? parseFloat(cats.extra.toFixed(2))     : null,
+               i===0 ? parseFloat(cats.doble.toFixed(2))     : null,
+               i===0 ? parseFloat((cats.ordinaria+cats.extra+cats.doble).toFixed(2)) : null,
+               t.cliente||'', t.trabajo||'', t.fase||'', t.centro||'',
+               i===0 ? (r.estado||'pendiente') : '']
+            : [fStr, dia, to12h(t.entrada), to12h(t.salida),
+               i===0 ? parseFloat(cats.ordinaria.toFixed(2)) : null,
+               i===0 ? parseFloat(cats.extra.toFixed(2))     : null,
+               i===0 ? parseFloat(cats.doble.toFixed(2))     : null,
+               i===0 ? parseFloat((cats.ordinaria+cats.extra+cats.doble).toFixed(2)) : null,
+               t.cliente||'', t.trabajo||'', t.fase||'', t.centro||'',
+               i===0 ? (r.estado||'pendiente') : ''];
+
+          vals.forEach((v, c) => {
+            const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+            const isNum = numColIdx1.includes(c);
+            ws1[addr] = {
+              v: v === null ? '' : v,
+              t: (isNum && v !== null) ? 'n' : 's',
+              s: { font: FONT_NORMAL, border: FULL_BORDER,
+                   alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' },
+                   numFmt: isNum ? FMT_NUM : undefined }
+            };
+            if (isNum && v !== null) ws1[addr].z = FMT_NUM;
+          });
+          ws1['!rows'][rowIdx] = { hpt: 18 };
+          rowIdx++;
+        });
+      });
+
+      // Fila de subtotal del colaborador
+      const subLabel = `SUBTOTAL — ${colab}`;
+      headers1.forEach((h, c) => {
+        const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+        const isNum = numColIdx1.includes(c);
+        let val = '';
+        if (c === 0) val = subLabel;
+        else if (h === 'Ordinarias (h)') val = parseFloat(subtotals.ord.toFixed(2));
+        else if (h === 'Extra (h)')       val = parseFloat(subtotals.ext.toFixed(2));
+        else if (h === 'Doble (h)')       val = parseFloat(subtotals.dob.toFixed(2));
+        else if (h === 'Total Trabajadas') val = parseFloat(subtotals.tot.toFixed(2));
+        ws1[addr] = {
+          v: val,
+          t: (isNum && val !== '') ? 'n' : 's',
+          s: { fill: COLOR_SUBTOTAL, font: FONT_WHITE,
+               alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' },
+               border: FULL_BORDER }
+        };
+        if (isNum && val !== '') ws1[addr].z = FMT_NUM;
+      });
+      ws1['!rows'][rowIdx] = { hpt: 20 };
+      rowIdx++;
+
+      grandTotals.ord += subtotals.ord;
+      grandTotals.ext += subtotals.ext;
+      grandTotals.dob += subtotals.dob;
+      grandTotals.tot += subtotals.tot;
+    });
+
+    // Fila de gran total (solo si hay más de un colaborador)
+    if (colabs.length > 1) {
+      headers1.forEach((h, c) => {
+        const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+        const isNum = numColIdx1.includes(c);
+        let val = '';
+        if (c === 0) val = 'TOTAL GENERAL';
+        else if (h === 'Ordinarias (h)') val = parseFloat(grandTotals.ord.toFixed(2));
+        else if (h === 'Extra (h)')       val = parseFloat(grandTotals.ext.toFixed(2));
+        else if (h === 'Doble (h)')       val = parseFloat(grandTotals.dob.toFixed(2));
+        else if (h === 'Total Trabajadas') val = parseFloat(grandTotals.tot.toFixed(2));
+        ws1[addr] = {
+          v: val,
+          t: (isNum && val !== '') ? 'n' : 's',
+          s: { fill: COLOR_TOTAL, font: { ...FONT_WHITE, sz: 11 },
+               alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' },
+               border: FULL_BORDER }
+        };
+        if (isNum && val !== '') ws1[addr].z = FMT_NUM;
+      });
+      ws1['!rows'][rowIdx] = { hpt: 22 };
+      rowIdx++;
+    }
+
+    ws1['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx - 1, c: headers1.length - 1 } });
+    ws1['!cols'] = headers1.map((h) => {
+      if (['Ordinarias (h)','Extra (h)','Doble (h)'].includes(h)) return { wch: 14 };
+      if (h === 'Total Trabajadas') return { wch: 16 };
+      if (h === 'Empleado' || h === 'Colaborador') return { wch: 26 };
+      if (h === 'Fecha') return { wch: 13 };
+      if (h === 'Día') return { wch: 9 };
+      if (h === 'Hora Entrada' || h === 'Hora Salida') return { wch: 13 };
+      if (h === 'Trabajo') return { wch: 30 };
+      if (h === 'Cliente') return { wch: 22 };
+      if (h === 'Centro de Costos') return { wch: 18 };
+      if (h === 'Fase') return { wch: 14 };
+      if (h === 'Estado') return { wch: 12 };
+      if (h === 'Criterio') return { wch: 10 };
+      return { wch: 12 };
+    });
+    // Autofilter en encabezado
+    ws1['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: headers1.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws1, 'Detalle');
+
+    // ════════════════════════════════════════════════════════
+    // HOJA 2 — Resumen por colaborador
+    // ════════════════════════════════════════════════════════
+    const ws2 = {};
+    const headers2 = ['Colaborador', 'Ordinarias (h)', 'Extra (h)', 'Doble (h)', 'Total Trabajadas', 'Días registrados'];
+
+    headers2.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      ws2[addr] = { v: h, t: 's', s: { fill: COLOR_RESUMEN_H, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER } };
+    });
+
+    let r2 = 1;
+    colabs.forEach(colab => {
+      const recs = byColab[colab];
+      let ord = 0, ext = 0, dob = 0;
+      const dias = new Set();
+      recs.forEach(r => {
+        dias.add(r.fecha);
+        (r.turnos || []).forEach((t, i) => {
+          if (i === 0) {
+            const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+            ord += cats.ordinaria; ext += cats.extra; dob += cats.doble;
+          }
+        });
+      });
+      const rowVals = [colab, parseFloat(ord.toFixed(2)), parseFloat(ext.toFixed(2)), parseFloat(dob.toFixed(2)), parseFloat((ord+ext+dob).toFixed(2)), dias.size];
+      rowVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r2, c });
+        const isNum = c > 0;
+        ws2[addr] = {
+          v, t: isNum ? 'n' : 's',
+          s: { font: FONT_NORMAL, border: FULL_BORDER, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' } }
+        };
+        if (isNum) ws2[addr].z = c < 5 ? FMT_NUM : '0';
+
+      });
+      r2++;
+    });
+
+    // Fila de totales en resumen
+    if (colabs.length > 1) {
+      const totVals = ['TOTAL', parseFloat(grandTotals.ord.toFixed(2)), parseFloat(grandTotals.ext.toFixed(2)), parseFloat(grandTotals.dob.toFixed(2)), parseFloat(grandTotals.tot.toFixed(2)), ''];
+      totVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r2, c });
+        const isNum = c >= 1 && c <= 4;
+        ws2[addr] = {
+          v: v === '' ? '' : v,
+          t: isNum ? 'n' : 's',
+          s: { fill: COLOR_TOTAL, font: FONT_WHITE, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER }
+        };
+        if (isNum) ws2[addr].z = FMT_NUM;
+      });
+      r2++;
+    }
+
+    // !ref es obligatorio — se define siempre después de escribir todas las filas
+    ws2['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r2 - 1, c: headers2.length - 1 } });
+    ws2['!cols'] = [{ wch: 26 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 18 }];
+    ws2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: headers2.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws2, 'Resumen');
+
+    // ════════════════════════════════════════════════════════
+    // HOJA 3 — Tabla dinámica (pivot manual)
+    // ════════════════════════════════════════════════════════
+    // Pivot: filas = colaborador, columnas = semanas del mes
+    const ws3 = {};
+    // Obtener semanas únicas ordenadas
+    const weekSet = new Set();
+    rows.forEach(r => {
+      const d = new Date(r.fecha + 'T12:00:00');
+      const week = `S${Math.ceil(d.getDate() / 7)}`;
+      weekSet.add(week);
+    });
+    const weeks = [...weekSet].sort();
+
+    // Pivot data: { colab: { semana: { ord, ext, dob, tot } } }
+    const pivot = {};
+    rows.forEach(r => {
+      const d    = new Date(r.fecha + 'T12:00:00');
+      const week = `S${Math.ceil(d.getDate() / 7)}`;
+      const key  = isAdmin ? (r.nombreColaborador || 'Sin nombre') : (userProfile?.nombre || 'Yo');
+      if (!pivot[key]) pivot[key] = {};
+      if (!pivot[key][week]) pivot[key][week] = { ord: 0, ext: 0, dob: 0, tot: 0 };
+      (r.turnos || []).forEach((t, i) => {
+        if (i === 0) {
+          const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+          pivot[key][week].ord += cats.ordinaria;
+          pivot[key][week].ext += cats.extra;
+          pivot[key][week].dob += cats.doble;
+          pivot[key][week].tot += cats.ordinaria + cats.extra + cats.doble;
+        }
+      });
+    });
+
+    // Cabecera pivot: Colaborador | S1 Ord | S1 Ext | S1 Dob | S1 Tot | ... | Total Ord | Total Ext | Total Dob | Total
+    const pivotHeaders = ['Colaborador'];
+    weeks.forEach(w => { pivotHeaders.push(`${w} Ord`, `${w} Ext`, `${w} Dob`, `${w} Total`); });
+    pivotHeaders.push('Total Ord', 'Total Ext', 'Total Dob', 'Total Trabajadas');
+
+    pivotHeaders.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      const isTotalGroup = h.startsWith('Total') || h === 'Total Trabajadas';
+      ws3[addr] = {
+        v: h, t: 's',
+        s: { fill: isTotalGroup ? COLOR_TOTAL : COLOR_RESUMEN_H, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER }
+      };
+    });
+
+    let r3 = 1;
+    const grandP = { ord: 0, ext: 0, dob: 0, tot: 0 };
+    const weekGrand = {};
+    weeks.forEach(w => { weekGrand[w] = { ord: 0, ext: 0, dob: 0, tot: 0 }; });
+
+    Object.keys(pivot).forEach(colab => {
+      const rowVals = [colab];
+      let tOrd = 0, tExt = 0, tDob = 0, tTot = 0;
+      weeks.forEach(w => {
+        const wk = pivot[colab][w] || { ord: 0, ext: 0, dob: 0, tot: 0 };
+        rowVals.push(
+          parseFloat(wk.ord.toFixed(2)), parseFloat(wk.ext.toFixed(2)),
+          parseFloat(wk.dob.toFixed(2)), parseFloat(wk.tot.toFixed(2))
+        );
+        tOrd += wk.ord; tExt += wk.ext; tDob += wk.dob; tTot += wk.tot;
+        weekGrand[w].ord += wk.ord; weekGrand[w].ext += wk.ext;
+        weekGrand[w].dob += wk.dob; weekGrand[w].tot += wk.tot;
+      });
+      rowVals.push(parseFloat(tOrd.toFixed(2)), parseFloat(tExt.toFixed(2)), parseFloat(tDob.toFixed(2)), parseFloat(tTot.toFixed(2)));
+      grandP.ord += tOrd; grandP.ext += tExt; grandP.dob += tDob; grandP.tot += tTot;
+
+      rowVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r3, c });
+        const isNum = c > 0;
+        const isTotalCol = c >= rowVals.length - 4;
+        const s3style = { font: isTotalCol ? FONT_BOLD : FONT_NORMAL, border: FULL_BORDER, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' } };
+        if (isTotalCol) s3style.fill = { fgColor: { rgb: 'e8f4f8' } };
+        ws3[addr] = { v, t: isNum ? 'n' : 's', s: s3style };
+        if (isNum) ws3[addr].z = FMT_NUM;
+      });
+      r3++;
+    });
+
+    // Fila de totales pivot
+    if (Object.keys(pivot).length > 1) {
+      const totRow = ['TOTAL'];
+      weeks.forEach(w => {
+        totRow.push(
+          parseFloat(weekGrand[w].ord.toFixed(2)), parseFloat(weekGrand[w].ext.toFixed(2)),
+          parseFloat(weekGrand[w].dob.toFixed(2)), parseFloat(weekGrand[w].tot.toFixed(2))
+        );
+      });
+      totRow.push(parseFloat(grandP.ord.toFixed(2)), parseFloat(grandP.ext.toFixed(2)), parseFloat(grandP.dob.toFixed(2)), parseFloat(grandP.tot.toFixed(2)));
+      totRow.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r3, c });
+        const isNum = c > 0;
+        ws3[addr] = {
+          v, t: isNum ? 'n' : 's',
+          s: { fill: COLOR_TOTAL, font: FONT_WHITE, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER }
+        };
+        if (isNum) ws3[addr].z = FMT_NUM;
+      });
+      r3++;
+    }
+
+    ws3['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r3 - 1, c: pivotHeaders.length - 1 } });
+    ws3['!cols'] = pivotHeaders.map((h, i) => i === 0 ? { wch: 26 } : { wch: 11 });
+    ws3['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: pivotHeaders.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws3, 'Pivot Semanas');
+
+    XLSX.writeFile(wb, `beirute_horas_${MESES[curM]}_${curY}.xlsx`);
+    showToast('✓ Excel generado correctamente');
+  });
+};
+
+
+// ── EXPORTAR POR RANGO ───────────────────────────────────────────
+window.openModalRango = function() {
+  // Valores por defecto: primer día del mes actual hasta hoy
+  const hoy    = new Date();
+  const primerDia = `${curY}-${String(curM+1).padStart(2,'0')}-01`;
+  const hoyStr    = hoy.toISOString().slice(0,10);
+  
+  const rangoDesdeEl = document.getElementById('rangoDesde');
+  const rangoHastaEl = document.getElementById('rangoHasta');
+  
+  rangoDesdeEl.value = primerDia;
+  rangoHastaEl.value = hoyStr;
+  
+  // Establecer límites de fecha
+  rangoDesdeEl.min = '2020-01-01'; // Primer dato posible
+  rangoHastaEl.max = hoyStr;       // No puede ser en el futuro
+  
+  // Validación en tiempo real
+  rangoDesdeEl.addEventListener('change', validarRangoFechas);
+  rangoHastaEl.addEventListener('change', validarRangoFechas);
+  
+  document.getElementById('modalRangoBg').style.display = 'flex';
+};
+
+window.validarRangoFechas = function() {
+  const desde = document.getElementById('rangoDesde').value;
+  const hasta = document.getElementById('rangoHasta').value;
+  const btnExportar = document.querySelector('#modalRangoBg .btn:not(.secondary)');
+  
+  if (desde && hasta) {
+    if (desde <= hasta) {
+      const desdeDate = new Date(desde);
+      const hastaDate = new Date(hasta);
+      const dias = Math.ceil((hastaDate - desdeDate) / (1000 * 60 * 60 * 24)) + 1;
+      const label = document.getElementById('rangoLabel') || createRangoLabel();
+      label.textContent = `Rango: ${dias} día${dias !== 1 ? 's' : ''}`;
+      label.style.color = 'var(--teal)';
+      if (btnExportar) btnExportar.disabled = false;
+    } else {
+      const label = document.getElementById('rangoLabel') || createRangoLabel();
+      label.textContent = 'La fecha desde no puede ser mayor a hasta';
+      label.style.color = 'var(--danger)';
+      if (btnExportar) btnExportar.disabled = true;
+    }
+  }
+};
+
+function createRangoLabel() {
+  const modalBody = document.querySelector('#modalRangoBg .modal-body');
+  const label = document.createElement('div');
+  label.id = 'rangoLabel';
+  label.style.fontSize = '12px';
+  label.style.marginTop = '1rem';
+  label.style.padding = '8px';
+  label.style.borderRadius = '4px';
+  label.style.background = 'rgba(43,191,179,.1)';
+  label.style.color = 'var(--text-muted)';
+  if (modalBody) modalBody.appendChild(label);
+  return label;
+}
+
+window.closeModalRango = function() {
+  document.getElementById('modalRangoBg').style.display = 'none';
+};
+
+window.exportXLSXRango = async function() {
+  const desde = document.getElementById('rangoDesde').value;
+  const hasta = document.getElementById('rangoHasta').value;
+  
+  // ════════════════════════════════════════════════════════════
+  // VALIDACIONES
+  // ════════════════════════════════════════════════════════════
+  if (!desde || !hasta) { 
+    showToast('⚠ Seleccioná ambas fechas (desde y hasta)'); 
+    return; 
+  }
+  
+  if (desde > hasta) { 
+    showToast('⚠ La fecha inicial no puede ser mayor a la final'); 
+    return; 
+  }
+  
+  const desdeDate = new Date(desde);
+  const hastaDate = new Date(hasta);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (hastaDate > today) {
+    showToast('⚠ La fecha final no puede ser mayor a hoy');
+    return;
+  }
+  
+  const diffDias = Math.ceil((hastaDate - desdeDate) / (1000 * 60 * 60 * 24));
+  if (diffDias > 365) {
+    showToast('⚠ El rango no puede ser mayor a 365 días');
+    return;
+  }
+
+  showToast('⏳ Consultando registros en Firebase...');
+
+  try {
+    const isAdmin = userProfile?.rol === 'admin';
+    
+    // QUERY CON MANEJO CORRECTO DE ERRORES
+    const q = isAdmin
+      ? query(
+          collection(db, 'registros'),
+          where('fecha', '>=', desde),
+          where('fecha', '<=', hasta),
+          orderBy('fecha', 'asc')
+        )
+      : query(
+          collection(db, 'registros'),
+          where('uid', '==', currentUser.uid),
+          where('fecha', '>=', desde),
+          where('fecha', '<=', hasta),
+          orderBy('fecha', 'asc')
+        );
+
+    const snap = await getDocs(q);
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (!rows.length) { 
+      showToast('⚠ Sin registros en ese rango (desde ' + desde + ' hasta ' + hasta + ')'); 
+      return; 
+    }
+
+    // ÉXITO: Cerrar modal y generar Excel
+    closeModalRango();
+    
+    const desdeFormato = new Date(desde).toLocaleDateString('es-CR');
+    const hastaFormato = new Date(hasta).toLocaleDateString('es-CR');
+    showToast(`✓ ${rows.length} registro${rows.length !== 1 ? 's' : ''} encontrado${rows.length !== 1 ? 's' : ''} (${desdeFormato} al ${hastaFormato})`);
+    
+    _generarExcel(rows, isAdmin, `Horas_${desde}_al_${hasta}`);
+    
+  } catch(e) {
+    console.error('Error en exportXLSXRango:', e);
+    showToast('⚠ Error al consultar Firebase: ' + e.message);
+  }
+};
+
+// Función interna compartida por exportXLSX y exportXLSXRango
+function _generarExcel(rows, isAdmin, nombreArchivo) {
+  const loadXLSX = new Promise(res => {
+    if (window.XLSX) { res(window.XLSX); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = () => res(null);
+    document.head.appendChild(s);
+  });
+
+  loadXLSX.then(XLSX => {
+    if (!XLSX) { showToast('No se pudo cargar librería XLSX'); return; }
+
+    const COLOR_HEADER    = { fgColor: { rgb: '1565C1' } };
+    const COLOR_SUBTOTAL  = { fgColor: { rgb: '1976D2' } };
+    const COLOR_TOTAL     = { fgColor: { rgb: '0D47A1' } };
+    const COLOR_RESUMEN_H = { fgColor: { rgb: '1565C1' } };
+    const FONT_WHITE      = { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 11 };
+    const FONT_NORMAL     = { name: 'Arial', sz: 10 };
+    const FONT_BOLD       = { bold: true, name: 'Arial', sz: 10 };
+    const FMT_NUM         = '0.00';
+    const BORDER_THIN     = { style: 'thin', color: { rgb: '334155' } };
+    const FULL_BORDER     = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+    const ALIGN_CENTER    = { horizontal: 'center', vertical: 'center' };
+    const ALIGN_RIGHT     = { horizontal: 'right',  vertical: 'center' };
+
+    const byColab = {};
+    rows.forEach(r => {
+      const key = isAdmin ? (r.nombreColaborador || 'Sin nombre') : (userProfile?.nombre || 'Yo');
+      if (!byColab[key]) byColab[key] = [];
+      byColab[key].push(r);
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    // ── HOJA 1: Detalle ──
+    const ws1 = { '!ref': 'A1', '!cols': [], '!rows': [] };
+    const headers1 = isAdmin
+      ? ['Fecha','Día','Empleado','Criterio','Hora Entrada','Hora Salida','Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas','Cliente','Trabajo','Fase','Centro de Costos','Estado']
+      : ['Fecha','Día','Hora Entrada','Hora Salida','Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas','Cliente','Trabajo','Fase','Centro de Costos','Estado'];
+
+    const numColIdx1 = headers1.reduce((acc, h, i) => {
+      if (['Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas'].includes(h)) acc.push(i);
+      return acc;
+    }, []);
+
+    let rowIdx = 0;
+    headers1.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+      ws1[addr] = { v: h, t: 's', s: { fill: COLOR_HEADER, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER } };
+    });
+    ws1['!rows'][rowIdx] = { hpt: 20 };
+    rowIdx++;
+
+    const colabs = Object.keys(byColab);
+    const grandTotals = { ord: 0, ext: 0, dob: 0, tot: 0 };
+
+    colabs.forEach(colab => {
+      const recs = byColab[colab];
+      const subtotals = { ord: 0, ext: 0, dob: 0, tot: 0 };
+
+      recs.forEach(r => {
+        const d    = new Date(r.fecha + 'T12:00:00');
+        const fStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        const dia  = DIAS[d.getDay()];
+
+        (r.turnos || []).forEach((t, i) => {
+          const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+          if (i === 0) {
+            subtotals.ord += cats.ordinaria;
+            subtotals.ext += cats.extra;
+            subtotals.dob += cats.doble;
+            subtotals.tot += cats.ordinaria + cats.extra + cats.doble;
+          }
+
+          const vals = isAdmin
+            ? [fStr, dia, colab, r.criterio||'B', to12h(t.entrada), to12h(t.salida),
+               i===0 ? parseFloat(cats.ordinaria.toFixed(2)) : null,
+               i===0 ? parseFloat(cats.extra.toFixed(2))     : null,
+               i===0 ? parseFloat(cats.doble.toFixed(2))     : null,
+               i===0 ? parseFloat((cats.ordinaria+cats.extra+cats.doble).toFixed(2)) : null,
+               t.cliente||'', t.trabajo||'', t.fase||'', t.centro||'',
+               i===0 ? (r.estado||'pendiente') : '']
+            : [fStr, dia, to12h(t.entrada), to12h(t.salida),
+               i===0 ? parseFloat(cats.ordinaria.toFixed(2)) : null,
+               i===0 ? parseFloat(cats.extra.toFixed(2))     : null,
+               i===0 ? parseFloat(cats.doble.toFixed(2))     : null,
+               i===0 ? parseFloat((cats.ordinaria+cats.extra+cats.doble).toFixed(2)) : null,
+               t.cliente||'', t.trabajo||'', t.fase||'', t.centro||'',
+               i===0 ? (r.estado||'pendiente') : ''];
+
+          vals.forEach((v, c) => {
+            const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+            const isNum = numColIdx1.includes(c);
+            ws1[addr] = {
+              v: v === null ? '' : v,
+              t: (isNum && v !== null) ? 'n' : 's',
+              s: { font: FONT_NORMAL, border: FULL_BORDER,
+                   alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' },
+                   numFmt: isNum ? FMT_NUM : undefined }
+            };
+            if (isNum && v !== null) ws1[addr].z = FMT_NUM;
+          });
+          ws1['!rows'][rowIdx] = { hpt: 18 };
+          rowIdx++;
+        });
+      });
+
+      // Subtotal colaborador
+      headers1.forEach((h, c) => {
+        const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+        const isNum = numColIdx1.includes(c);
+        let val = '';
+        if (c === 0) val = `SUBTOTAL — ${colab}`;
+        else if (h === 'Ordinarias (h)')  val = parseFloat(subtotals.ord.toFixed(2));
+        else if (h === 'Extra (h)')        val = parseFloat(subtotals.ext.toFixed(2));
+        else if (h === 'Doble (h)')        val = parseFloat(subtotals.dob.toFixed(2));
+        else if (h === 'Total Trabajadas') val = parseFloat(subtotals.tot.toFixed(2));
+        ws1[addr] = {
+          v: val, t: (isNum && val !== '') ? 'n' : 's',
+          s: { fill: COLOR_SUBTOTAL, font: FONT_WHITE,
+               alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER }
+        };
+        if (isNum && val !== '') ws1[addr].z = FMT_NUM;
+      });
+      ws1['!rows'][rowIdx] = { hpt: 20 };
+      rowIdx++;
+
+      grandTotals.ord += subtotals.ord;
+      grandTotals.ext += subtotals.ext;
+      grandTotals.dob += subtotals.dob;
+      grandTotals.tot += subtotals.tot;
+    });
+
+    if (colabs.length > 1) {
+      headers1.forEach((h, c) => {
+        const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+        const isNum = numColIdx1.includes(c);
+        let val = '';
+        if (c === 0) val = 'TOTAL GENERAL';
+        else if (h === 'Ordinarias (h)')  val = parseFloat(grandTotals.ord.toFixed(2));
+        else if (h === 'Extra (h)')        val = parseFloat(grandTotals.ext.toFixed(2));
+        else if (h === 'Doble (h)')        val = parseFloat(grandTotals.dob.toFixed(2));
+        else if (h === 'Total Trabajadas') val = parseFloat(grandTotals.tot.toFixed(2));
+        ws1[addr] = {
+          v: val, t: (isNum && val !== '') ? 'n' : 's',
+          s: { fill: COLOR_TOTAL, font: { ...FONT_WHITE, sz: 11 },
+               alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER }
+        };
+        if (isNum && val !== '') ws1[addr].z = FMT_NUM;
+      });
+      ws1['!rows'][rowIdx] = { hpt: 22 };
+      rowIdx++;
+    }
+
+    ws1['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx - 1, c: headers1.length - 1 } });
+    ws1['!cols'] = headers1.map(h => {
+      if (['Ordinarias (h)','Extra (h)','Doble (h)'].includes(h)) return { wch: 14 };
+      if (h === 'Total Trabajadas') return { wch: 16 };
+      if (h === 'Empleado' || h === 'Colaborador') return { wch: 26 };
+      if (h === 'Fecha') return { wch: 13 };
+      if (h === 'Día') return { wch: 9 };
+      if (h === 'Hora Entrada' || h === 'Hora Salida') return { wch: 13 };
+      if (h === 'Trabajo') return { wch: 30 };
+      if (h === 'Cliente') return { wch: 22 };
+      if (h === 'Centro de Costos') return { wch: 18 };
+      if (h === 'Fase') return { wch: 14 };
+      if (h === 'Estado') return { wch: 12 };
+      if (h === 'Criterio') return { wch: 10 };
+      return { wch: 12 };
+    });
+    ws1['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: headers1.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws1, 'Detalle');
+
+    // ── HOJA 2: Resumen ──
+    const ws2 = {};
+    const headers2 = ['Colaborador','Ordinarias (h)','Extra (h)','Doble (h)','Total Trabajadas','Días registrados'];
+    headers2.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      ws2[addr] = { v: h, t: 's', s: { fill: COLOR_RESUMEN_H, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER } };
+    });
+    let r2 = 1;
+    colabs.forEach(colab => {
+      const recs = byColab[colab];
+      let ord = 0, ext = 0, dob = 0;
+      const dias = new Set();
+      recs.forEach(r => {
+        dias.add(r.fecha);
+        (r.turnos || []).forEach((t, i) => {
+          if (i === 0) {
+            const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+            ord += cats.ordinaria; ext += cats.extra; dob += cats.doble;
+          }
+        });
+      });
+      const rowVals = [colab, parseFloat(ord.toFixed(2)), parseFloat(ext.toFixed(2)), parseFloat(dob.toFixed(2)), parseFloat((ord+ext+dob).toFixed(2)), dias.size];
+      rowVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r2, c });
+        const isNum = c > 0;
+        ws2[addr] = { v, t: isNum ? 'n' : 's', s: { font: FONT_NORMAL, border: FULL_BORDER, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' } } };
+        if (isNum) ws2[addr].z = c < 5 ? FMT_NUM : '0';
+      });
+      r2++;
+    });
+    if (colabs.length > 1) {
+      const totVals = ['TOTAL', parseFloat(grandTotals.ord.toFixed(2)), parseFloat(grandTotals.ext.toFixed(2)), parseFloat(grandTotals.dob.toFixed(2)), parseFloat(grandTotals.tot.toFixed(2)), ''];
+      totVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r2, c });
+        const isNum = c >= 1 && c <= 4;
+        ws2[addr] = { v: v === '' ? '' : v, t: isNum ? 'n' : 's', s: { fill: COLOR_TOTAL, font: FONT_WHITE, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER } };
+        if (isNum) ws2[addr].z = FMT_NUM;
+      });
+      r2++;
+    }
+    ws2['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r2 - 1, c: headers2.length - 1 } });
+    ws2['!cols'] = [{ wch: 26 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 18 }];
+    ws2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: headers2.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws2, 'Resumen');
+
+    // ── HOJA 3: Pivot semanas ──
+    const ws3 = {};
+    const weekSet = new Set();
+    rows.forEach(r => {
+      const d = new Date(r.fecha + 'T12:00:00');
+      weekSet.add(`S${Math.ceil(d.getDate() / 7)}`);
+    });
+    const weeks = [...weekSet].sort();
+    const pivot = {};
+    rows.forEach(r => {
+      const d    = new Date(r.fecha + 'T12:00:00');
+      const week = `S${Math.ceil(d.getDate() / 7)}`;
+      const key  = isAdmin ? (r.nombreColaborador || 'Sin nombre') : (userProfile?.nombre || 'Yo');
+      if (!pivot[key]) pivot[key] = {};
+      if (!pivot[key][week]) pivot[key][week] = { ord: 0, ext: 0, dob: 0, tot: 0 };
+      (r.turnos || []).forEach((t, i) => {
+        if (i === 0) {
+          const cats = calcCategories(t.entrada, t.salida, r.fecha, r.criterio || 'B');
+          pivot[key][week].ord += cats.ordinaria;
+          pivot[key][week].ext += cats.extra;
+          pivot[key][week].dob += cats.doble;
+          pivot[key][week].tot += cats.ordinaria + cats.extra + cats.doble;
+        }
+      });
+    });
+    const pivotHeaders = ['Colaborador'];
+    weeks.forEach(w => { pivotHeaders.push(`${w} Ord`, `${w} Ext`, `${w} Dob`, `${w} Total`); });
+    pivotHeaders.push('Total Ord','Total Ext','Total Dob','Total Trabajadas');
+    pivotHeaders.forEach((h, c) => {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      const isTotalGroup = h.startsWith('Total') || h === 'Total Trabajadas';
+      ws3[addr] = { v: h, t: 's', s: { fill: isTotalGroup ? COLOR_TOTAL : COLOR_RESUMEN_H, font: FONT_WHITE, alignment: ALIGN_CENTER, border: FULL_BORDER } };
+    });
+    let r3 = 1;
+    const grandP = { ord: 0, ext: 0, dob: 0, tot: 0 };
+    const weekGrand = {};
+    weeks.forEach(w => { weekGrand[w] = { ord: 0, ext: 0, dob: 0, tot: 0 }; });
+    Object.keys(pivot).forEach(colab => {
+      const rowVals = [colab];
+      let tOrd = 0, tExt = 0, tDob = 0, tTot = 0;
+      weeks.forEach(w => {
+        const wk = pivot[colab][w] || { ord: 0, ext: 0, dob: 0, tot: 0 };
+        rowVals.push(parseFloat(wk.ord.toFixed(2)), parseFloat(wk.ext.toFixed(2)), parseFloat(wk.dob.toFixed(2)), parseFloat(wk.tot.toFixed(2)));
+        tOrd += wk.ord; tExt += wk.ext; tDob += wk.dob; tTot += wk.tot;
+        weekGrand[w].ord += wk.ord; weekGrand[w].ext += wk.ext; weekGrand[w].dob += wk.dob; weekGrand[w].tot += wk.tot;
+      });
+      rowVals.push(parseFloat(tOrd.toFixed(2)), parseFloat(tExt.toFixed(2)), parseFloat(tDob.toFixed(2)), parseFloat(tTot.toFixed(2)));
+      grandP.ord += tOrd; grandP.ext += tExt; grandP.dob += tDob; grandP.tot += tTot;
+      rowVals.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r3, c });
+        const isNum = c > 0;
+        const isTotalCol = c >= rowVals.length - 4;
+        const s3style = { font: isTotalCol ? FONT_BOLD : FONT_NORMAL, border: FULL_BORDER, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' } };
+        if (isTotalCol) s3style.fill = { fgColor: { rgb: 'e8f4f8' } };
+        ws3[addr] = { v, t: isNum ? 'n' : 's', s: s3style };
+        if (isNum) ws3[addr].z = FMT_NUM;
+      });
+      r3++;
+    });
+    if (Object.keys(pivot).length > 1) {
+      const totRow = ['TOTAL'];
+      weeks.forEach(w => { totRow.push(parseFloat(weekGrand[w].ord.toFixed(2)), parseFloat(weekGrand[w].ext.toFixed(2)), parseFloat(weekGrand[w].dob.toFixed(2)), parseFloat(weekGrand[w].tot.toFixed(2))); });
+      totRow.push(parseFloat(grandP.ord.toFixed(2)), parseFloat(grandP.ext.toFixed(2)), parseFloat(grandP.dob.toFixed(2)), parseFloat(grandP.tot.toFixed(2)));
+      totRow.forEach((v, c) => {
+        const addr = XLSX.utils.encode_cell({ r: r3, c });
+        const isNum = c > 0;
+        ws3[addr] = { v, t: isNum ? 'n' : 's', s: { fill: COLOR_TOTAL, font: FONT_WHITE, alignment: isNum ? ALIGN_RIGHT : { vertical: 'center' }, border: FULL_BORDER } };
+        if (isNum) ws3[addr].z = FMT_NUM;
+      });
+      r3++;
+    }
+    ws3['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r3 - 1, c: pivotHeaders.length - 1 } });
+    ws3['!cols'] = pivotHeaders.map((h, i) => i === 0 ? { wch: 26 } : { wch: 11 });
+    ws3['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: pivotHeaders.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws3, 'Pivot Semanas');
+
+    XLSX.writeFile(wb, `beirute_horas_${nombreArchivo}.xlsx`);
+    showToast('✓ Excel generado correctamente');
+  });
+}
+
+// ── BITÁCORA / AUDITORÍA ──────────────────────────────────────────
+async function logAudit(accion, detalle = {}) {
+  try {
+    await addDoc(collection(db, 'bitacora'), {
+      accion,
+      realizadoPor:      userProfile?.nombre || currentUser?.email || '—',
+      realizadoPorUid:   currentUser?.uid || '—',
+      detalle,
+      fecha: new Date().toISOString(),
+    });
+  } catch(e) {
+    console.warn('⚠ No se pudo registrar en bitácora:', e.message);
+  }
+}
+
+let bitacoraData = [];
+
+window.loadBitacora = async function() {
+  const tbody = document.getElementById('tbodyBitacora');
+  if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="ti ti-loader"></i> Cargando...</td></tr>`;
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'bitacora'), orderBy('fecha', 'desc'))
+    );
+    bitacoraData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    poblarFiltroMeses();
+    renderBitacora();
+  } catch(e) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty" style="color:var(--danger)">⚠ Error al cargar bitácora: ${e.message}</td></tr>`;
+  }
+};
+
+function poblarFiltroMeses() {
+  const sel = document.getElementById('filtroMesAudit');
+  if (!sel) return;
+  const meses = new Set();
+  bitacoraData.forEach(e => {
+    const d = new Date(e.fecha);
+    meses.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  });
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos los meses</option>';
+  [...meses].sort().reverse().forEach(m => {
+    const [y, mo] = m.split('-');
+    sel.innerHTML += `<option value="${m}" ${m===current?'selected':''}>${MESES[parseInt(mo)-1]} ${y}</option>`;
+  });
+}
+
+window.renderBitacora = function() {
+  const tbody      = document.getElementById('tbodyBitacora');
+  const filtroAcc  = document.getElementById('filtroAccion')?.value  || '';
+  const filtroMes  = document.getElementById('filtroMesAudit')?.value || '';
+  if (!tbody) return;
+
+  let rows = bitacoraData;
+  if (filtroAcc) rows = rows.filter(e => e.accion === filtroAcc);
+  if (filtroMes) rows = rows.filter(e => {
+    const d = new Date(e.fecha);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return key === filtroMes;
+  });
+
+  document.getElementById('auditCount').textContent = `${rows.length} registro${rows.length !== 1 ? 's' : ''}`;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="ti ti-database-off"></i> Sin registros en la bitácora</td></tr>`;
+    return;
+  }
+
+  const accionMeta = {
+    crear:             ['audit-crear',    'ti-plus',             'Crear registro'],
+    editar:            ['audit-editar',   'ti-pencil',           'Editar registro'],
+    aprobar:           ['audit-aprobar',  'ti-circle-check',     'Aprobar'],
+    rechazar:          ['audit-rechazar', 'ti-x-circle',         'Rechazar'],
+    eliminar:          ['audit-eliminar', 'ti-trash',            'Eliminar registro'],
+    usuario_creado:    ['audit-usuario',  'ti-user-plus',        'Usuario creado'],
+    usuario_eliminado: ['audit-usuario',  'ti-user-minus',       'Usuario eliminado'],
+    rol_cambiado:      ['audit-rol',      'ti-switch-horizontal', 'Cambio de rol'],
+    criterio_cambiado: ['audit-criterio', 'ti-adjustments',      'Cambio de criterio'],
+  };
+
+  tbody.innerHTML = rows.map(e => {
+    const d        = new Date(e.fecha);
+    const fechaStr = d.toLocaleDateString('es-CR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const horaStr  = d.toLocaleTimeString('es-CR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const [cls, ico, label] = accionMeta[e.accion] || ['audit-editar','ti-activity', e.accion];
+    const det = e.detalle || {};
+
+    // Construir texto de detalle según acción
+    let detalleTexto = '';
+    if (e.accion === 'crear' || e.accion === 'editar') {
+      detalleTexto = [
+        det.fecha      ? `Fecha: ${det.fecha}`        : '',
+        det.turno0     ? `Turno: ${det.turno0}`       : '',
+        det.cliente    ? `Cliente: ${det.cliente}`    : '',
+        det.trabajo    ? `Trabajo: ${det.trabajo}`    : '',
+      ].filter(Boolean).join(' · ');
+    } else if (e.accion === 'aprobar' || e.accion === 'rechazar' || e.accion === 'eliminar') {
+      detalleTexto = [
+        det.fecha      ? `Fecha registro: ${det.fecha}` : '',
+        det.motivo     ? `Motivo: ${det.motivo}`         : '',
+      ].filter(Boolean).join(' · ');
+    } else if (e.accion === 'cerrar_mes') {
+      detalleTexto = det.mes ? `Mes: ${det.mes}` : '';
+    } else if (e.accion === 'usuario_creado' || e.accion === 'usuario_eliminado') {
+      detalleTexto = [
+        det.email  ? `Email: ${det.email}` : '',
+        det.rol    ? `Rol: ${det.rol}`     : '',
+      ].filter(Boolean).join(' · ');
+    } else if (e.accion === 'rol_cambiado') {
+      detalleTexto = det.de && det.a ? `${det.de} → ${det.a}` : '';
+    } else if (e.accion === 'criterio_cambiado') {
+      detalleTexto = det.de && det.a ? `Criterio ${det.de} → Criterio ${det.a}` : '';
+    }
+
+    return `<tr>
+      <td style="white-space:nowrap">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">${fechaStr}</div>
+        <div style="font-size:10px;color:var(--text-muted)">${horaStr}</div>
+      </td>
+      <td><span class="audit-action ${cls}"><i class="ti ${ico}"></i> ${label}</span></td>
+      <td style="font-size:12px">${e.realizadoPor || '—'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${det.afecta || '—'}</td>
+      <td class="audit-detalle">${detalleTexto || '—'}</td>
+    </tr>`;
+  }).join('');
+};
+
+// ── TABS ──────────────────────────────────────────────────────
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab)?.classList.add('active');
+      if (btn.dataset.tab === 'tab-usuarios') loadUsuariosAdmin();
+      if (btn.dataset.tab === 'tab-bitacora') loadBitacora();
+    });
+  });
+  document.querySelector('.tab-btn')?.click();
+}
+
+// ── CERRAR MODALES AL HACER CLICK FUERA ──────────────────────
+document.getElementById('loginPass')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('modalBg')?.addEventListener('click', e => {
+  if (e.target.id === 'modalBg') closeModal();
+});
+document.getElementById('modalUsuarioBg')?.addEventListener('click', e => {
+  if (e.target.id === 'modalUsuarioBg') closeModalUsuario();
+});
+document.getElementById('modalCriterioBg')?.addEventListener('click', e => {
+  if (e.target.id === 'modalCriterioBg') closeModalCriterio();
+});
+</script>
+
+</body>
+</html>
